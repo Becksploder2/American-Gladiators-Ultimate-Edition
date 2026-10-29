@@ -1,0 +1,92 @@
+{
+  "era": "2026",
+  "platform": "Prime Video",
+  "hosts": [
+    {
+      "name": "Mike Mizanin",
+      "screen_name": "The Miz",
+      "role": "host"
+    },
+    {
+      "name": "Rocsi Diaz",
+      "role": "host"
+    },
+    {
+      "name": "Chris Rose",
+      "role": "play-by-play"
+    }
+  ],
+  "male": [
+    {
+      "alias": "Ace",
+      "name": "Drew Aggouras"
+    },
+    {
+      "alias": "The Bull",
+      "name": "Eric Bugenhagen"
+    },
+    {
+      "alias": "Eagle",
+      "name": "Jason Peele"
+    },
+    {
+      "alias": "Fang",
+      "name": "Michael Wardlow"
+    },
+    {
+      "alias": "Lightning",
+      "name": "Joseph Hall"
+    },
+    {
+      "alias": "Mayhem",
+      "name": "Faysal Shafaat"
+    },
+    {
+      "alias": "Neon",
+      "name": "Ayinde Warren"
+    },
+    {
+      "alias": "Steel",
+      "name": "Jessie Godderz"
+    }
+  ],
+  "female": [
+    {
+      "alias": "Blaze",
+      "name": "Abigail Lay"
+    },
+    {
+      "alias": "Crush",
+      "name": "Dani Speegle"
+    },
+    {
+      "alias": "Empire",
+      "name": "Lu Faustin"
+    },
+    {
+      "alias": "Huntress",
+      "name": "Sydney Hunter"
+    },
+    {
+      "alias": "Hurricane",
+      "name": "Kailey Latimer (Farmer)"
+    },
+    {
+      "alias": "Striker",
+      "name": "Emily Nelson"
+    },
+    {
+      "alias": "Supernova",
+      "name": "Jessica Roden"
+    },
+    {
+      "alias": "Voltage",
+      "name": "Dani Means"
+    }
+  ],
+  "notes": [
+    "User-supplied roster; verify broadcast costumes and visual references before sprite creation.",
+    "Blaze 2026 is a different person from Blaze in the original US series.",
+    "Standalone 2026 mode unlocks after Eras Mode victory; 2026 also appears as final Eras chapter."
+  ]
+}
