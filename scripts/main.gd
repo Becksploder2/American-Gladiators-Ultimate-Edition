@@ -43,6 +43,14 @@ var ai_speed := 125.0
 var gamepad_name := "KEYBOARD"
 var unlock_gladiator := false
 var season_wins := 0
+var highest_era_unlocked := 0
+var tournament_round := 0
+var tournament_names: Array[String] = []
+var tournament_opponents: Array[String] = []
+var match_player_points := 0
+var match_cpu_points := 0
+var event_player_start := 0
+var tournament_result := ""
 var event_index := 0
 var normal_events := ["POWERBALL", "ATLASPHERE", "JOUST"]
 var upcoming_events: Array[String] = []
@@ -277,7 +285,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				screen = "ROSTER"
 				roster_page = 0
 			elif key == KEY_E:
-				era_index = (era_index + 1) % era_labels.size()
+				era_index = (era_index + 1) % (highest_era_unlocked + 1)
 				_refresh_schedule()
 			elif key == KEY_1:
 				_start_season("ERAS")
@@ -293,6 +301,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			roster_page = maxi(0, roster_page - 1)
 		elif key == KEY_ESCAPE:
 			screen = "MENU"
+		elif screen == "CHAMPION" and key == KEY_ENTER:
+			if mode == "ERAS" and era_index < highest_era_unlocked:
+				era_index += 1
+				_start_season("ERAS")
+			else:
+				screen = "MENU"
 		elif screen == "RESULT" and (key == KEY_ENTER or key == KEY_Z):
 			_next_event()
 	if screen == "INTRO" and event is InputEventJoypadButton and event.pressed:
@@ -306,12 +320,31 @@ func _unhandled_input(event: InputEvent) -> void:
 		_next_event()
 	queue_redraw()
 
+func _make_contender_name() -> String:
+	var first := ["ALEX", "JORDAN", "CASEY", "TAYLOR", "MORGAN", "RILEY", "JAMIE", "DREW", "CAMERON", "SKYLER", "PARKER", "DEVON", "SAM", "JESSE", "QUINN", "DANA"]
+	var last := ["MARTINEZ", "BROOKS", "TURNER", "REED", "BENNETT", "FOSTER", "RAMIREZ", "MORGAN", "PRICE", "COLEMAN", "HAYES", "SULLIVAN", "PARKER", "HENDERSON", "BAILEY", "WALKER"]
+	return first.pick_random() + " " + last.pick_random()
+
+func _prepare_tournament() -> void:
+	tournament_names.clear()
+	while tournament_names.size() < 7:
+		var candidate := _make_contender_name()
+		if not tournament_names.has(candidate):
+			tournament_names.append(candidate)
+	tournament_opponents = [tournament_names[0], tournament_names[1], tournament_names[2]]
+	tournament_round = 0
+	match_player_points = 0
+	match_cpu_points = 0
+
 func _start_season(chosen_mode: String) -> void:
 	if chosen_mode == "MODERN" and not unlock_gladiator:
 		message = "2026 MODE LOCKED UNTIL ERAS CHAMPIONSHIP"
 		queue_redraw()
 		return
 	mode = chosen_mode
+	if mode == "ERAS":
+		era_index = mini(era_index, highest_era_unlocked)
+	_prepare_tournament()
 	event_index = 0
 	score = 0
 	_refresh_schedule()
@@ -322,6 +355,8 @@ func _start_event() -> void:
 		theme_player.stop()
 	screen = "PLAY"
 	event_name = upcoming_events[event_index]
+	event_player_start = score
+	ai_score = 0
 	time_left = 60.0 if event_name == "ASSAULT" else 45.0
 	whistle_countdown = 3.0 if mode == "MODERN" else 1.8
 	contender = Vector2(150, 295)
@@ -492,11 +527,26 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _next_event() -> void:
+	match_player_points += maxi(0, score - event_player_start)
+	match_cpu_points += ai_score
 	event_index += 1
 	if event_index >= upcoming_events.size():
-		# Placeholder events do not count as a completed championship.
-		# Unlock will be enabled only after a real winning season is implemented.
-		screen = "PROTOTYPE_END"
+		if match_player_points > match_cpu_points:
+			tournament_round += 1
+			if tournament_round >= 3:
+				screen = "CHAMPION"
+				season_wins += 1
+				if mode == "ERAS":
+					highest_era_unlocked = maxi(highest_era_unlocked, mini(era_index + 1, era_labels.size() - 1))
+				_save_progress()
+			else:
+				match_player_points = 0
+				match_cpu_points = 0
+				event_index = 0
+				_refresh_schedule()
+				_start_event()
+		else:
+			screen = "TOURNAMENT_OUT"
 	else:
 		_start_event()
 	queue_redraw()
@@ -632,7 +682,7 @@ func _draw() -> void:
 		_draw_text("3  GLADIATOR MODE " + ("UNLOCKED" if unlock_gladiator else "[LOCKED]"), Vector2(70, 358), 18, GREEN if unlock_gladiator else RED)
 		_draw_text("4  CREATE A CONTENDER (PLANNED)", Vector2(480, 358), 17)
 		_draw_text("F5: IMPORT ORIGINAL TV THEME (WAV)", Vector2(70, 398), 17, GOLD)
-		_draw_text("E: SELECT ERA - " + era_labels[era_index] + "", Vector2(70, 426), 17, GOLD)
+		_draw_text("E: UNLOCKED ERA - " + era_labels[era_index] + "", Vector2(70, 426), 17, GOLD)
 		_draw_text("R: GLADIATOR ROSTER PREVIEW   |   Gladiator Creator locked.", Vector2(70, 458), 15)
 	elif screen == "PLAY":
 		_draw_era_arena()
@@ -682,13 +732,18 @@ func _draw() -> void:
 		if whistle_countdown > 0:
 			_draw_text("READY... " + (str(ceili(whistle_countdown)) if mode == "MODERN" else "WHISTLE"), Vector2(360, 285), 26, GOLD)
 	elif screen == "RESULT":
+		_draw_text("ROUND " + str(tournament_round + 1) + " VS " + tournament_opponents[tournament_round], Vector2(140, 153), 20, GOLD)
 		_draw_text(event_name + " COMPLETE", Vector2(140, 200), 32, GOLD)
-		_draw_text("POINTS: " + str(score), Vector2(140, 255), 30)
+		_draw_text("EVENT: " + str(maxi(0, score - event_player_start)) + "  CPU: " + str(ai_score), Vector2(140, 255), 26)
+		_draw_text("MATCH: " + str(match_player_points + maxi(0, score - event_player_start)) + " - " + str(match_cpu_points + ai_score), Vector2(140, 292), 22)
 		_draw_text("PRESS ENTER OR A FOR NEXT EVENT", Vector2(140, 332), 20)
 	elif screen == "CHAMPION":
-		_draw_text("SEASON COMPLETE!", Vector2(160, 200), 40, GOLD)
-		_draw_text("GLADIATOR MODE + CREATOR UNLOCKED!", Vector2(100, 270), 27, GREEN)
-		_draw_text("PRESS ESC TO RETURN TO MENU", Vector2(140, 350), 20)
+		_draw_text("TOURNAMENT CHAMPION!", Vector2(160, 200), 36, GOLD)
+		_draw_text("NEXT ERA UNLOCKED: " + era_labels[highest_era_unlocked], Vector2(140, 270), 25, GREEN)
+		_draw_text("ENTER: NEXT ERA   ESC: MENU", Vector2(140, 350), 20)
+	elif screen == "TOURNAMENT_OUT":
+		_draw_text("ELIMINATED IN ROUND " + str(tournament_round + 1), Vector2(130, 235), 30, RED)
+		_draw_text("OPPONENT: " + tournament_opponents[tournament_round], Vector2(130, 290), 22)
 	else:
 		_draw_text(screen + " - IN DEVELOPMENT", Vector2(120, 235), 30, GOLD)
 		_draw_text("PRESS ESC TO RETURN TO MENU", Vector2(140, 300), 19)
@@ -698,9 +753,11 @@ func _load_progress() -> void:
 	if cfg.load(SAVE_PATH) == OK:
 		unlock_gladiator = cfg.get_value("progress", "gladiator_unlocked", false)
 		season_wins = cfg.get_value("progress", "season_wins", 0)
+		highest_era_unlocked = int(cfg.get_value("progress", "highest_era_unlocked", 0))
 
 func _save_progress() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("progress", "gladiator_unlocked", unlock_gladiator)
 	cfg.set_value("progress", "season_wins", season_wins)
+	cfg.set_value("progress", "highest_era_unlocked", highest_era_unlocked)
 	cfg.save(SAVE_PATH)
