@@ -21,6 +21,7 @@ var intro_time := 0.0
 var event_name := "POWERBALL"
 var contender := Vector2(150, 295)
 var gladiator := Vector2(680, 295)
+var powerball_defenders: Array[Vector2] = []
 var ball := Vector2(380, 295)
 var holding_ball := false
 var score := 0
@@ -204,7 +205,7 @@ func _refresh_schedule() -> void:
 		events.append_array(["THE MAZE", "SWINGSHOT"])
 	if era_index >= 6:
 		events.erase("HUMAN CANNONBALL")
-		events.append("SKYTRACK")
+		events.append_array(["SKYTRACK", "SUPER POWERBALL"])
 	if era_index >= 8:
 		# Season 5 replaces The Maze with Gauntlet.
 		events.erase("THE MAZE")
@@ -311,12 +312,18 @@ func _start_event() -> void:
 	whistle_countdown = 3.0 if mode == "MODERN" else 1.8
 	contender = Vector2(150, 295)
 	gladiator = Vector2(680, 295)
+	powerball_defenders = [Vector2(310, 295), Vector2(540, 295), Vector2(760, 295)]
 	ball = Vector2(380, 295)
 	holding_ball = false
 	message = "CONTENDER READY!  GLADIATOR READY!"
 	whistle_played = false
 	_play_tone(440.0, 0.22)
 	queue_redraw()
+
+func _powerball_goals() -> Array[Vector2]:
+	if event_name.begins_with("SUPER POWERBALL"):
+		return [Vector2(220, 285), Vector2(740, 285)]
+	return [Vector2(185, 285), Vector2(480, 285), Vector2(775, 285)]
 
 func _process(delta: float) -> void:
 	if screen == "INTRO":
@@ -340,19 +347,34 @@ func _process(delta: float) -> void:
 	contender += movement * move_speed * (1.4 if Input.is_action_pressed("dash") else 1.0) * delta
 	contender.x = clampf(contender.x, 60, WIDTH - 60)
 	contender.y = clampf(contender.y, 180, HEIGHT - 75)
-	gladiator = gladiator.move_toward(contender, delta * ai_speed)
-	if event_name.begins_with("POWERBALL"):
-		if (Input.is_action_just_pressed("primary_action") or Input.is_action_just_pressed("pickup_weapon")) and contender.distance_to(ball) < 46 and not holding_ball:
+	if event_name.contains("POWERBALL"):
+		for i in range(powerball_defenders.size()):
+			powerball_defenders[i] = powerball_defenders[i].move_toward(contender, delta * ai_speed)
+	else:
+		gladiator = gladiator.move_toward(contender, delta * ai_speed)
+	if event_name.contains("POWERBALL"):
+		if (Input.is_action_just_pressed("secondary_action")) and contender.distance_to(ball) < 46 and not holding_ball:
 			holding_ball = true
 		if holding_ball:
 			ball = contender + Vector2(0, -19)
-			if contender.distance_to(Vector2(850, 260)) < 52:
+			var scored := false
+			for goal in _powerball_goals():
+				if contender.distance_to(goal) < 48:
+					scored = true
+					break
+			if scored:
 				score += 2
 				_play_tone(740.0, 0.18)
 				holding_ball = false
 				ball = Vector2(380, randf_range(220, 395))
 				message = "SCORE! +2"
-	if contender.distance_to(gladiator) < 30:
+	var blocked := contender.distance_to(gladiator) < 30 if not event_name.contains("POWERBALL") else false
+	if event_name.contains("POWERBALL"):
+		for defender in powerball_defenders:
+			if contender.distance_to(defender) < 30:
+				blocked = true
+				break
+	if blocked:
 		contender.x = maxf(60, contender.x - 140 * delta)
 		if holding_ball:
 			holding_ball = false
@@ -496,10 +518,17 @@ func _draw() -> void:
 	elif screen == "PLAY":
 		_draw_era_arena()
 		draw_rect(Rect2(64, 169, 832, 270), Color("#286ba9"), false, 6)
-		draw_circle(Vector2(850, 260), 32, GOLD)
-		draw_circle(ball, 10, GOLD)
-		_draw_character(contender, false)
-		_draw_character(gladiator, true)
+		if event_name.contains("POWERBALL"):
+			for goal in _powerball_goals():
+				draw_circle(goal, 32, GOLD)
+				draw_circle(goal, 22, Color("#28394b"))
+			draw_circle(ball, 10, GOLD)
+			_draw_character(contender, false)
+			for defender in powerball_defenders:
+				_draw_character(defender, true)
+		else:
+			_draw_character(contender, false)
+			_draw_character(gladiator, true)
 		_draw_text(mode + " " + era_labels[era_index] + " - " + event_name, Vector2(63, 126), 22, GOLD)
 		_draw_text(host_primary + " / " + host_secondary, Vector2(64, 145), 13, LIGHT)
 		_draw_text("POINTS " + str(score), Vector2(690, 126), 21)
