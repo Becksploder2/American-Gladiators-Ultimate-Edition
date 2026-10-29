@@ -161,7 +161,12 @@ func _controller_changed(_device: int, _connected: bool) -> void:
 	queue_redraw()
 
 func _refresh_schedule() -> void:
-	upcoming_events = ["POWERBALL", "ATLASPHERE", "JOUST", "RETRO ELIMINATOR" if mode == "ERAS" else "ELIMINATOR '26"]
+	if mode == "ERAS" and era_index == 0:
+		upcoming_events = ["POWERBALL S1A", "ASSAULT S1A", "JOUST S1A", "HUMAN CANNONBALL S1A", "BREAKTHROUGH AND CONQUER S1A", "ELIMINATOR S1A"]
+	elif mode == "MODERN" or era_index == 5:
+		upcoming_events = ["POWERBALL 2026", "JOUST 2026", "ELIMINATOR 2026"]
+	else:
+		upcoming_events = ["POWERBALL", "ATLASPHERE", "JOUST", "RETRO ELIMINATOR"]
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -186,7 +191,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			screen = "MENU"
 		elif screen == "RESULT" and (key == KEY_ENTER or key == KEY_SPACE):
 			_next_event()
-	if screen == "MENU" and event is InputEventJoypadButton and event.pressed:
+	if screen == "INTRO" and event is InputEventJoypadButton and event.pressed:
+		screen = "MENU"
+	elif screen == "MENU" and event is InputEventJoypadButton and event.pressed:
 		if event.button_index == JOY_BUTTON_A:
 			_start_season(mode)
 		elif event.button_index == JOY_BUTTON_Y:
