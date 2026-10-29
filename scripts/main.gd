@@ -1103,8 +1103,8 @@ func _draw() -> void:
 			for i in range(14 if era_index == 0 else 0):
 				draw_line(Vector2(198 + i * 40, 349), Vector2(198 + i * 40, 370), INK, 2.0)
 			if era_index == 0:
-				draw_rect(Rect2(185, 349), Vector2(70, 22) if not (joust_finished and joust_fall_trapdoor and joust_fall_loser == "CONTENDER") else Vector2(70, 8)), RED, false, 3.0)
-				draw_rect(Rect2(705, 349), Vector2(70, 22) if not (joust_finished and joust_fall_trapdoor and joust_fall_loser == "GLADIATOR") else Vector2(70, 8)), RED, false, 3.0)
+				draw_rect(Rect2(Vector2(185, 349), Vector2(70, 22) if not (joust_finished and joust_fall_trapdoor and joust_fall_loser == "CONTENDER") else Vector2(70, 8)), RED, false, 3.0)
+				draw_rect(Rect2(Vector2(705, 349), Vector2(70, 22) if not (joust_finished and joust_fall_trapdoor and joust_fall_loser == "GLADIATOR") else Vector2(70, 8)), RED, false, 3.0)
 			draw_line(Vector2(185, 349), Vector2(100, 205), GOLD, 4.0)
 			draw_line(Vector2(775, 349), Vector2(860, 205), GOLD, 4.0)
 			if joust_finished:
