@@ -24,6 +24,13 @@ var gladiator := Vector2(680, 295)
 var powerball_defenders: Array[Vector2] = []
 var ball := Vector2(380, 295)
 var holding_ball := false
+var ai_contender := Vector2(815, 395)
+var ai_holding := false
+var ai_score := 0
+var assault_station := 0
+var assault_fired: Array[bool] = [false, false, false, false, false]
+var assault_projectile := Vector2(-100, -100)
+var assault_timer := 1.0
 var score := 0
 var time_left := 50.0
 var whistle_countdown := 0.0
@@ -308,10 +315,17 @@ func _start_event() -> void:
 		theme_player.stop()
 	screen = "PLAY"
 	event_name = upcoming_events[event_index]
-	time_left = 50.0
+	time_left = 60.0 if event_name == "ASSAULT" else 45.0
 	whistle_countdown = 3.0 if mode == "MODERN" else 1.8
 	contender = Vector2(150, 295)
 	gladiator = Vector2(680, 295)
+	ai_contender = Vector2(815, 395)
+	ai_holding = false
+	ai_score = 0
+	assault_station = 0
+	assault_fired = [false, false, false, false, false]
+	assault_projectile = Vector2(-100, -100)
+	assault_timer = 1.0
 	powerball_defenders = [Vector2(310, 295), Vector2(540, 295), Vector2(760, 295)]
 	ball = Vector2(380, 295)
 	holding_ball = false
@@ -319,6 +333,9 @@ func _start_event() -> void:
 	whistle_played = false
 	_play_tone(440.0, 0.22)
 	queue_redraw()
+
+func _assault_stations() -> Array[Vector2]:
+	return [Vector2(145, 400), Vector2(305, 345), Vector2(465, 290), Vector2(625, 345), Vector2(785, 400)]
 
 func _powerball_goals() -> Array[Vector2]:
 	if event_name.begins_with("SUPER POWERBALL"):
@@ -348,38 +365,59 @@ func _process(delta: float) -> void:
 	contender.x = clampf(contender.x, 60, WIDTH - 60)
 	contender.y = clampf(contender.y, 180, HEIGHT - 75)
 	if event_name.contains("POWERBALL"):
+		var holder := Vector2(145, 395)
+		var cpu_holder := Vector2(815, 395)
+		var cpu_target := _powerball_goals()[0] if ai_holding else cpu_holder
+		ai_contender = ai_contender.move_toward(cpu_target, delta * 115.0)
+		if not ai_holding and ai_contender.distance_to(cpu_holder) < 16:
+			ai_holding = true
+		if ai_holding and ai_contender.distance_to(_powerball_goals()[0]) < 40:
+			ai_score += 1
+			ai_holding = false
 		for i in range(powerball_defenders.size()):
-			powerball_defenders[i] = powerball_defenders[i].move_toward(contender, delta * ai_speed)
+			var target := ai_contender if i == 2 else contender
+			powerball_defenders[i] = powerball_defenders[i].move_toward(target, delta * ai_speed)
+		if Input.is_action_just_pressed("secondary_action") and contender.distance_to(holder) < 45 and not holding_ball:
+			holding_ball = true
+			message = "BALL TAKEN - HOLDER REFILLED"
+		if holding_ball:
+			for goal in _powerball_goals():
+				if contender.distance_to(goal) < 43:
+					var points := 2 if goal == Vector2(480, 285) else 1
+					score += points
+					holding_ball = false
+					message = "SCORE! +" + str(points)
+					_play_tone(740.0, 0.18)
+					break
+		for defender in powerball_defenders:
+			if holding_ball and contender.distance_to(defender) < 30:
+				holding_ball = false
+				message = "GLADIATOR BLOCK!"
+			if ai_holding and ai_contender.distance_to(defender) < 30:
+				ai_holding = false
+	elif event_name == "ASSAULT":
+		var stations := _assault_stations()
+		if Input.is_action_just_pressed("pickup_weapon") and contender.distance_to(stations[assault_station]) < 50:
+			message = "WEAPON READY - Z TO FIRE"
+		if Input.is_action_just_pressed("primary_action") and contender.distance_to(stations[assault_station]) < 50 and not assault_fired[assault_station]:
+			assault_fired[assault_station] = true
+			score += 1
+			message = "WEAPON FIRED! +1"
+			assault_station = mini(4, assault_station + 1)
+		assault_timer -= delta
+		if assault_timer <= 0:
+			assault_projectile = Vector2(480, 185)
+			assault_timer = 2.0
+		assault_projectile = assault_projectile.move_toward(contender, delta * 245.0)
+		var safe := false
+		for station in stations:
+			if contender.distance_to(station) < 35:
+				safe = true
+		if not safe and assault_projectile.distance_to(contender) < 20:
+			screen = "RESULT"
+			message = "DIRECT HIT - ROUND OVER"
 	else:
 		gladiator = gladiator.move_toward(contender, delta * ai_speed)
-	if event_name.contains("POWERBALL"):
-		if (Input.is_action_just_pressed("secondary_action")) and contender.distance_to(ball) < 46 and not holding_ball:
-			holding_ball = true
-		if holding_ball:
-			ball = contender + Vector2(0, -19)
-			var scored := false
-			for goal in _powerball_goals():
-				if contender.distance_to(goal) < 48:
-					scored = true
-					break
-			if scored:
-				score += 2
-				_play_tone(740.0, 0.18)
-				holding_ball = false
-				ball = Vector2(380, randf_range(220, 395))
-				message = "SCORE! +2"
-	var blocked := contender.distance_to(gladiator) < 30 if not event_name.contains("POWERBALL") else false
-	if event_name.contains("POWERBALL"):
-		for defender in powerball_defenders:
-			if contender.distance_to(defender) < 30:
-				blocked = true
-				break
-	if blocked:
-		contender.x = maxf(60, contender.x - 140 * delta)
-		if holding_ball:
-			holding_ball = false
-			ball = contender + Vector2(-26, 0)
-			message = "GLADIATOR BLOCK!"
 	if time_left <= 0:
 		screen = "RESULT"
 		time_left = 0.0
@@ -522,16 +560,27 @@ func _draw() -> void:
 			for goal in _powerball_goals():
 				draw_circle(goal, 32, GOLD)
 				draw_circle(goal, 22, Color("#28394b"))
-			draw_circle(ball, 10, GOLD)
+			for holder in [Vector2(145, 395), Vector2(815, 395)]:
+				draw_rect(Rect2(holder - Vector2(22, 15), Vector2(44, 30)), GOLD, false, 3)
+				draw_circle(holder, 9, GOLD)
+			_draw_character(ai_contender, false)
 			_draw_character(contender, false)
 			for defender in powerball_defenders:
 				_draw_character(defender, true)
+		elif event_name == "ASSAULT":
+			for i in range(5):
+				var station := _assault_stations()[i]
+				draw_rect(Rect2(station - Vector2(24, 12), Vector2(48, 24)), GREEN if assault_fired[i] else BLUE)
+			draw_circle(Vector2(480, 185), 23, RED)
+			draw_circle(assault_projectile, 8, GOLD)
+			_draw_character(contender, false)
+			_draw_character(gladiator, true)
 		else:
 			_draw_character(contender, false)
 			_draw_character(gladiator, true)
 		_draw_text(mode + " " + era_labels[era_index] + " - " + event_name, Vector2(63, 126), 22, GOLD)
 		_draw_text(host_primary + " / " + host_secondary, Vector2(64, 145), 13, LIGHT)
-		_draw_text("POINTS " + str(score), Vector2(690, 126), 21)
+		_draw_text("YOU " + str(score) + " CPU " + str(ai_score), Vector2(535, 85), 18)
 		draw_rect(Rect2(766, 88, 137, 49), Color("#080b16"))
 		draw_rect(Rect2(766, 88, 137, 49), GOLD, false, 3)
 		_draw_text(":" + str(int(maxf(0.0, time_left)) % 60).pad_zeros(2), Vector2(818, 120), 27, GOLD)
