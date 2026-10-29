@@ -34,11 +34,18 @@ var message := ""
 var hud_font: Font = ThemeDB.fallback_font
 var sound_player: AudioStreamPlayer
 var whistle_played := false
+var theme_player: AudioStreamPlayer
+var theme_picker: FileDialog
 
 func _ready() -> void:
 	_install_input_actions()
 	_setup_audio()
 	_load_progress()
+	var music_cfg := ConfigFile.new()
+	if music_cfg.load("user://music.cfg") == OK:
+		var saved_path: String = music_cfg.get_value("music", "theme", "")
+		if FileAccess.file_exists(saved_path):
+			_theme_selected(saved_path)
 	Input.joy_connection_changed.connect(_controller_changed)
 	_controller_changed(0, false)
 	_refresh_schedule()
@@ -71,6 +78,14 @@ func _setup_audio() -> void:
 	sound_player = AudioStreamPlayer.new()
 	add_child(sound_player)
 	sound_player.volume_db = -8.0
+	theme_player = AudioStreamPlayer.new()
+	add_child(theme_player)
+	theme_picker = FileDialog.new()
+	theme_picker.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	theme_picker.access = FileDialog.ACCESS_FILESYSTEM
+	theme_picker.add_filter("*.wav", "WAV audio")
+	theme_picker.file_selected.connect(_theme_selected)
+	add_child(theme_picker)
 
 func _play_tone(frequency: float, duration: float) -> void:
 	var rate := 22050
@@ -88,6 +103,19 @@ func _play_tone(frequency: float, duration: float) -> void:
 	sound_player.stream = audio
 	sound_player.play()
 
+func _theme_selected(path: String) -> void:
+	var stream := AudioStreamWAV.load_from_file(path)
+	if stream == null:
+		message = "COULD NOT LOAD WAV FILE"
+		queue_redraw()
+		return
+	theme_player.stream = stream
+	theme_player.play()
+	var cfg := ConfigFile.new()
+	cfg.set_value("music", "theme", path)
+	cfg.save("user://music.cfg")
+	queue_redraw()
+
 func _controller_changed(_device: int, _connected: bool) -> void:
 	var pads := Input.get_connected_joypads()
 	gamepad_name = Input.get_joy_name(pads[0]) if not pads.is_empty() else "KEYBOARD"
@@ -99,7 +127,9 @@ func _refresh_schedule() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: Key = event.keycode
-		if screen == "MENU":
+		if key == KEY_F5:
+			theme_picker.popup_centered_ratio(0.75)
+		elif screen == "MENU":
 			if key == KEY_1:
 				_start_season("RETRO")
 			elif key == KEY_2:
@@ -208,7 +238,8 @@ func _draw() -> void:
 		_draw_text("2  MODERN SEASON (2026)", Vector2(70, 224), 27)
 		_draw_text("3  GLADIATOR MODE " + ("UNLOCKED" if unlock_gladiator else "[LOCKED]"), Vector2(70, 282), 25, GREEN if unlock_gladiator else RED)
 		_draw_text("4  CREATE A CONTENDER (PLANNED)", Vector2(70, 340), 23)
-		_draw_text("Controller: A = Retro  |  Y = Modern", Vector2(70, 415), 18, GOLD)
+		_draw_text("F5: IMPORT ORIGINAL TV THEME (WAV)", Vector2(70, 390), 18, GOLD)
+		_draw_text("Controller: A = Retro  |  Y = Modern", Vector2(70, 421), 18, GOLD)
 		_draw_text("Gladiator Mode and Creator unlock after a season victory.", Vector2(70, 455), 15)
 	elif screen == "PLAY":
 		draw_rect(Rect2(50, 151, 860, 307), BLUE)
