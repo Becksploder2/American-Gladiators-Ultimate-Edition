@@ -41,6 +41,8 @@ var sound_player: AudioStreamPlayer
 var whistle_played := false
 var theme_player: AudioStreamPlayer
 var theme_picker: FileDialog
+var roster_page := 0
+var roster_names: Array[String] = []
 
 func _ready() -> void:
 	_install_input_actions()
@@ -54,6 +56,7 @@ func _ready() -> void:
 	Input.joy_connection_changed.connect(_controller_changed)
 	_controller_changed(0, false)
 	_refresh_schedule()
+	_load_roster_gallery()
 	queue_redraw()
 
 func _install_input_actions() -> void:
@@ -189,6 +192,44 @@ func _refresh_schedule() -> void:
 	else:
 		upcoming_events = ["POWERBALL", "ATLASPHERE", "JOUST", "RETRO ELIMINATOR"]
 
+func _load_roster_gallery() -> void:
+	roster_names.clear()
+	var classic_file := FileAccess.open("res://data/us_classic_roster_timeline.json", FileAccess.READ)
+	if classic_file != null:
+		var parsed: Variant = JSON.parse_string(classic_file.get_as_text())
+		if parsed is Dictionary:
+			var seasons: Dictionary = parsed.get("seasons", {})
+			for season_key in seasons:
+				var record: Dictionary = seasons[season_key]
+				for field in ["original", "brief", "debut", "returning", "core", "returns", "return"]:
+					var entries: Array = record.get(field, [])
+					for entry in entries:
+						var name: String = str(entry)
+						if not roster_names.has(name):
+							roster_names.append(name)
+	var modern_file := FileAccess.open("res://data/roster_2026.json", FileAccess.READ)
+	if modern_file != null:
+		var parsed_modern: Variant = JSON.parse_string(modern_file.get_as_text())
+		if parsed_modern is Dictionary:
+			for gender in ["male", "female"]:
+				for person in parsed_modern.get(gender, []):
+					roster_names.append(str(person.get("alias", "")) + " (2026)")
+
+func _draw_pixel_avatar(pos: Vector2, name: String, index: int) -> void:
+	var palette := [Color("#d94552"), Color("#2473b9"), Color("#e8c553"), Color("#8a4eb0"), Color("#31a48b")]
+	var suit: Color = palette[index % palette.size()]
+	var skin: Color = [Color("#e7ad7f"), Color("#a66a4a"), Color("#d78e67"), Color("#f1c29c")][index % 4]
+	var hair: Color = [Color("#241b24"), Color("#c88b37"), Color("#6a3d30"), Color("#e5c76a")][index % 4]
+	draw_rect(Rect2(pos + Vector2(14, 3), Vector2(24, 9)), hair)
+	draw_rect(Rect2(pos + Vector2(17, 12), Vector2(18, 17)), skin)
+	draw_rect(Rect2(pos + Vector2(12, 29), Vector2(28, 25)), suit)
+	draw_rect(Rect2(pos + Vector2(4, 32), Vector2(8, 25)), skin)
+	draw_rect(Rect2(pos + Vector2(40, 32), Vector2(8, 25)), skin)
+	draw_rect(Rect2(pos + Vector2(14, 54), Vector2(10, 15)), suit)
+	draw_rect(Rect2(pos + Vector2(30, 54), Vector2(10, 15)), suit)
+	draw_rect(Rect2(pos + Vector2(20, 20), Vector2(4, 3)), INK)
+	draw_rect(Rect2(pos + Vector2(31, 20), Vector2(4, 3)), INK)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: Key = event.keycode
@@ -197,7 +238,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif screen == "INTRO":
 			screen = "MENU"
 		elif screen == "MENU":
-			if key == KEY_E:
+			if key == KEY_R:
+				screen = "ROSTER"
+				roster_page = 0
+			elif key == KEY_E:
 				era_index = (era_index + 1) % era_labels.size()
 				_refresh_schedule()
 			elif key == KEY_1:
@@ -208,6 +252,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				screen = "GLADIATOR"
 			elif key == KEY_4:
 				screen = "CREATOR"
+		elif screen == "ROSTER" and key == KEY_RIGHT:
+			roster_page += 1
+		elif screen == "ROSTER" and key == KEY_LEFT:
+			roster_page = maxi(0, roster_page - 1)
 		elif key == KEY_ESCAPE:
 			screen = "MENU"
 		elif screen == "RESULT" and (key == KEY_ENTER or key == KEY_SPACE):
@@ -359,6 +407,18 @@ func _draw() -> void:
 			draw_rect(Rect2(x + 35, y, 30, 45), RED if i % 2 == 0 else BLUE)
 			_draw_text(cast_names[i], Vector2(x, y + 68), 15, GOLD)
 		_draw_text("PRESS ANY KEY TO SKIP", Vector2(330, 480), 18)
+	elif screen == "ROSTER":
+		_draw_text("GLADIATOR ROSTER - PIXEL AVATAR PREVIEWS", Vector2(65, 118), 24, GOLD)
+		var start := roster_page * 12
+		for slot in range(12):
+			var idx := start + slot
+			if idx >= roster_names.size():
+				break
+			var x := 75 + (slot % 4) * 220
+			var y := 150 + int(slot / 4) * 110
+			_draw_pixel_avatar(Vector2(x, y), roster_names[idx], idx)
+			_draw_text(roster_names[idx].substr(0, 20), Vector2(x, y + 90), 13)
+		_draw_text("LEFT / RIGHT: PAGE     ESC: MENU     PAGE " + str(roster_page + 1), Vector2(65, 500), 16, GOLD)
 	elif screen == "MENU":
 		_draw_text("HOSTS: " + host_primary + " / " + host_secondary, Vector2(70, 110), 16, GOLD)
 		_draw_text("1  ERAS MODE (1989-2026)", Vector2(70, 166), 27)
@@ -367,7 +427,7 @@ func _draw() -> void:
 		_draw_text("4  CREATE A CONTENDER (PLANNED)", Vector2(70, 340), 23)
 		_draw_text("F5: IMPORT ORIGINAL TV THEME (WAV)", Vector2(70, 390), 18, GOLD)
 		_draw_text("E: SELECT ERA - " + era_labels[era_index] + "", Vector2(70, 421), 18, GOLD)
-		_draw_text("Gladiator Mode and Creator unlock after a season victory.", Vector2(70, 455), 15)
+		_draw_text("R: GLADIATOR ROSTER PREVIEW   |   Gladiator Creator locked.", Vector2(70, 455), 15)
 	elif screen == "PLAY":
 		_draw_era_arena()
 		draw_rect(Rect2(64, 169, 832, 270), Color("#286ba9"), false, 6)
