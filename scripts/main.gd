@@ -289,7 +289,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_refresh_schedule()
 			elif key == KEY_1:
 				_start_season("ERAS")
-			elif key == KEY_2 and unlock_gladiator:
+			elif key == KEY_2:
 				_start_season("MODERN")
 			elif key == KEY_3 and unlock_gladiator:
 				screen = "GLADIATOR"
@@ -313,9 +313,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		screen = "MENU"
 	elif screen == "MENU" and event is InputEventJoypadButton and event.pressed:
 		if event.button_index == JOY_BUTTON_A:
-			_start_season(mode)
+			_start_season("ERAS")
 		elif event.button_index == JOY_BUTTON_Y:
-			_start_season("MODERN" if mode == "RETRO" else "RETRO")
+			_start_season("MODERN")
 	if screen == "RESULT" and event.is_action_pressed("primary_action"):
 		_next_event()
 	queue_redraw()
@@ -337,13 +337,11 @@ func _prepare_tournament() -> void:
 	match_cpu_points = 0
 
 func _start_season(chosen_mode: String) -> void:
-	if chosen_mode == "MODERN" and not unlock_gladiator:
-		message = "2026 MODE LOCKED UNTIL ERAS CHAMPIONSHIP"
-		queue_redraw()
-		return
-	mode = chosen_mode
+		mode = chosen_mode
 	if mode == "ERAS":
 		era_index = mini(era_index, highest_era_unlocked)
+	elif mode == "MODERN":
+		era_index = 12
 	_prepare_tournament()
 	event_index = 0
 	score = 0
@@ -678,7 +676,7 @@ func _draw() -> void:
 		draw_texture_rect(classic_logo, Rect2(70, 145, 340, 170), false)
 		_draw_text("1  ERAS MODE", Vector2(145, 327), 21, GOLD)
 		draw_texture_rect(modern_logo, Rect2(525, 145, 340, 170), false)
-		_draw_text("2  2026 MODE [LOCKED - ERAS VICTORY]", Vector2(532, 327), 16, RED)
+		_draw_text("2  2026 TOURNAMENT MODE", Vector2(532, 327), 16, RED)
 		_draw_text("3  GLADIATOR MODE " + ("UNLOCKED" if unlock_gladiator else "[LOCKED]"), Vector2(70, 358), 18, GREEN if unlock_gladiator else RED)
 		_draw_text("4  CREATE A CONTENDER (PLANNED)", Vector2(480, 358), 17)
 		_draw_text("F5: IMPORT ORIGINAL TV THEME (WAV)", Vector2(70, 398), 17, GOLD)
@@ -739,8 +737,8 @@ func _draw() -> void:
 		_draw_text("PRESS ENTER OR A FOR NEXT EVENT", Vector2(140, 332), 20)
 	elif screen == "CHAMPION":
 		_draw_text("TOURNAMENT CHAMPION!", Vector2(160, 200), 36, GOLD)
-		_draw_text("NEXT ERA UNLOCKED: " + era_labels[highest_era_unlocked], Vector2(140, 270), 25, GREEN)
-		_draw_text("ENTER: NEXT ERA   ESC: MENU", Vector2(140, 350), 20)
+		_draw_text("NEXT ERA UNLOCKED: " + era_labels[highest_era_unlocked] if mode == "ERAS" else "2026 TOURNAMENT WON!", Vector2(140, 270), 25, GREEN)
+		_draw_text("ENTER: NEXT ERA   ESC: MENU" if mode == "ERAS" else "ENTER / ESC: MENU", Vector2(140, 350), 20)
 	elif screen == "TOURNAMENT_OUT":
 		_draw_text("ELIMINATED IN ROUND " + str(tournament_round + 1), Vector2(130, 235), 30, RED)
 		_draw_text("OPPONENT: " + tournament_opponents[tournament_round], Vector2(130, 290), 22)
