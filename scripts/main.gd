@@ -47,6 +47,14 @@ var conquer_push := 0.0
 var conquer_clock := 10.0
 var breakthrough_guard_cooldown := 0.0
 var joust_fall_timer := 0.0
+var joust_action := ""
+var joust_action_time := 0.0
+var joust_jump_time := 0.0
+var joust_ducking := false
+var assault_target_hp := 3
+var eliminator_progress := 0.0
+var eliminator_obstacle := 0
+var eliminator_stumble := 0.0
 var joust_fall_loser := ""
 var joust_fall_trapdoor := false
 var joust_fall_origin := Vector2.ZERO
@@ -503,6 +511,14 @@ func _start_event() -> void:
 		contender = Vector2(145, 320)
 		gladiator = Vector2(485, 320)
 	joust_fall_timer = 0.0
+	joust_action = ""
+	joust_action_time = 0.0
+	joust_jump_time = 0.0
+	joust_ducking = false
+	eliminator_progress = 0.0
+	eliminator_obstacle = 0
+	eliminator_stumble = 0.0
+	assault_target_hp = 3
 	joust_fall_loser = ""
 	joust_fall_trapdoor = false
 	joust_fall_origin = Vector2.ZERO
@@ -639,8 +655,10 @@ func _process(delta: float) -> void:
 			ai_recovery = 0.8
 			ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
 		for i in range(powerball_defenders.size()):
-			var target := ai_contender if i == 2 else (ai_contender if i == 1 and ai_holding and not holding_ball else contender)
-			powerball_defenders[i] = powerball_defenders[i].move_toward(target, delta * ai_speed * 0.72)
+			var target := contender if i == 0 else (ai_contender if i == 2 else (contender if holding_ball else ai_contender))
+			var zone_x := [320.0, 480.0, 640.0][i]
+			target.x = clampf(target.x, zone_x - 125.0, zone_x + 125.0)
+			powerball_defenders[i] = powerball_defenders[i].move_toward(target, delta * ai_speed * (0.70 + 0.08 * i))
 		if not powerball_out and Input.is_action_just_pressed("secondary_action") and contender.distance_to(holder) < 45 and not holding_ball:
 			holding_ball = true
 			message = "BALL TAKEN - HOLDER REFILLED"
@@ -782,18 +800,36 @@ func _process(delta: float) -> void:
 		joust_hit_flash = maxf(0.0, joust_hit_flash - delta)
 		contender.x = clampf(contender.x + movement.x * 150.0 * delta, 205.0, 755.0)
 		gladiator.x = move_toward(gladiator.x, contender.x + 62.0, 48.0 * delta)
-		if Input.is_action_just_pressed("primary_action") and joust_attack_cooldown <= 0.0:
-			joust_attack_cooldown = 0.55
-			if absf(contender.x - gladiator.x) < 105.0:
-				gladiator.x += 30.0
-				joust_gladiator_hp = maxf(0.0, joust_gladiator_hp - 25.0)
-				joust_hit_flash = 0.22
-				message = "PUGIL STICK STRIKE!"
-			else:
-				message = "STRIKE MISSED!"
+		joust_action_time = maxf(0.0, joust_action_time - delta)
+		joust_jump_time = maxf(0.0, joust_jump_time - delta)
+		joust_ducking = movement.y > 0.35 and joust_jump_time <= 0.0
+		if movement.y < -0.35 and joust_jump_time <= 0.0 and not joust_ducking:
+			joust_jump_time = 0.7
+		if joust_attack_cooldown <= 0.0:
+			var attack := ""
+			if Input.is_action_just_pressed("primary_action"):
+				attack = "RIGHT CROSS"
+			elif Input.is_action_just_pressed("secondary_action"):
+				attack = "LEFT CROSS"
+			elif Input.is_action_just_pressed("pickup_weapon"):
+				attack = "UPPERCUT"
+			elif Input.is_action_just_pressed("fourth_face"):
+				attack = "OVERHEAD SWING"
+			if not attack.is_empty():
+				joust_action = attack
+				joust_action_time = 0.4
+				joust_attack_cooldown = 0.48
+				var reach := 110.0 if attack == "UPPERCUT" else 125.0
+				if absf(contender.x - gladiator.x) < reach:
+					gladiator.x += 22.0
+					joust_gladiator_hp = maxf(0.0, joust_gladiator_hp - (30.0 if attack == "UPPERCUT" else 22.0))
+					joust_hit_flash = 0.22
+					message = attack + " - HIT!"
+				else:
+					message = attack + " - MISSED!"
 		if absf(contender.x - gladiator.x) < 110.0 and joust_cpu_attack_cooldown <= 0.0:
 			joust_cpu_attack_cooldown = 1.25
-			joust_player_hp = maxf(0.0, joust_player_hp - 18.0)
+			joust_player_hp = maxf(0.0, joust_player_hp - (4.0 if joust_ducking or joust_jump_time > 0.0 else 18.0))
 			contender.x -= 25.0
 			message = "GLADIATOR COUNTERATTACK!"
 		if (era_index == 0 and gladiator.x >= 755.0) or joust_gladiator_hp <= 0.0:
@@ -849,6 +885,11 @@ func _process(delta: float) -> void:
 			message = "WEAPON READY - A TO FIRE"
 		if Input.is_action_just_pressed("primary_action") and contender.distance_to(stations[assault_station]) < 50 and not assault_fired[assault_station]:
 			assault_fired[assault_station] = true
+			assault_target_hp -= 1
+			if assault_target_hp <= 0:
+				score += 10
+				screen = "RESULT"
+				message = "TARGET DESTROYED! +10"
 			if era_index >= 4 and era_index < 12:
 				score += 1
 				message = "WEAPON FIRED! +1"
@@ -880,6 +921,23 @@ func _process(delta: float) -> void:
 		if not safe and assault_projectile.distance_to(contender) < (10.0 if assault_roll_time > 0.0 else 14.0 if assault_jump_time > 0.0 else 20.0):
 			screen = "RESULT"
 			message = "DIRECT HIT - ROUND OVER"
+	elif event_name.contains("ELIMINATOR"):
+		eliminator_stumble = maxf(0.0, eliminator_stumble - delta)
+		if eliminator_stumble <= 0.0:
+			eliminator_progress = clampf(eliminator_progress + maxf(0.0, movement.x) * delta * 90.0 + (28.0 * delta if Input.is_action_pressed("dash") else 0.0), 0.0, 800.0)
+		var checkpoint := int(eliminator_progress / 135.0)
+		if checkpoint > eliminator_obstacle:
+			if movement.y < -0.2 or Input.is_action_pressed("primary_action"):
+				eliminator_obstacle = checkpoint
+				message = "OBSTACLE CLEARED! " + str(eliminator_obstacle) + "/6"
+			else:
+				eliminator_progress = float(eliminator_obstacle * 135) - 4.0
+				eliminator_stumble = 0.6
+				message = "OBSTACLE! HOLD UP OR Z TO CLIMB"
+		if eliminator_progress >= 795.0:
+			score += maxi(5, int(time_left))
+			screen = "RESULT"
+			message = "ELIMINATOR FINISHED!"
 	else:
 		gladiator = gladiator.move_toward(contender, delta * ai_speed)
 	if (time_left <= 0 and not (event_name == "JOUST" and mode == "ERAS")) or (event_name == "HUMAN CANNONBALL" and cannon_resolved and cannon_attempts >= 3):
@@ -901,6 +959,7 @@ func _next_event() -> void:
 				season_wins += 1
 				if mode == "ERAS":
 					highest_era_unlocked = maxi(highest_era_unlocked, mini(era_index + 1, era_labels.size() - 1))
+					era_index = highest_era_unlocked
 				_save_progress()
 			else:
 				match_player_points = 0
@@ -1157,7 +1216,11 @@ func _draw() -> void:
 			else:
 				_draw_character(contender, false)
 				_draw_character(gladiator, true)
-			draw_line(contender + Vector2(12, -9), contender + Vector2(72, -34), GOLD, 9.0)
+			var swing := sin((0.4 - joust_action_time) * 14.0) if joust_action_time > 0.0 else 0.0
+			draw_line(contender + Vector2(12, -9), contender + Vector2(72, -34 + swing * 55.0), GOLD, 9.0)
+			if joust_action_time > 0.0:
+				_draw_text(joust_action, Vector2(365, 240), 21, GOLD)
+			_draw_text("Z RIGHT  X LEFT  C UPPERCUT  V OVERHEAD  UP JUMP  DOWN DUCK", Vector2(125, 465), 14, GOLD)
 			draw_line(gladiator + Vector2(-12, -9), gladiator + Vector2(-72, -34), GOLD, 9.0)
 			draw_rect(Rect2(250, 175, 205, 17), RED)
 			draw_rect(Rect2(250, 175, 205.0 * joust_player_hp / 100.0, 17), GREEN)
@@ -1181,6 +1244,15 @@ func _draw() -> void:
 			draw_rect(Rect2(gladiator + Vector2(-35, -21 - cannon_guard * 20.0), Vector2(21, 7)), GOLD)
 			_draw_text("BLOCK PAD: " + str(int(cannon_guard * 100.0)) + "%", Vector2(620, 245), 15, GOLD)
 			_draw_text("SWING " + str(mini(cannon_attempts + (0 if cannon_launched else 1), 3)) + "/3   Z: LAUNCH   X: NEXT SWING", Vector2(240, 425), 18, GOLD)
+		elif event_name.contains("ELIMINATOR"):
+			_draw_text("THE ELIMINATOR - RUN RIGHT, UP/Z TO CLEAR OBSTACLES", Vector2(115, 165), 19, GOLD)
+			for i in range(6):
+				var x := 115.0 + float(i) * 130.0
+				draw_rect(Rect2(x, 285, 35, 115), RED if i >= eliminator_obstacle else GREEN)
+				_draw_text(["WALL", "NET", "ROPE", "BEAM", "CLIMB", "FINISH"][i], Vector2(x - 8, 267), 14, GOLD)
+			draw_rect(Rect2(90, 400, 790, 12), GOLD)
+			_draw_character(Vector2(90 + eliminator_progress, 350), false)
+			_draw_text("PROGRESS " + str(int(eliminator_progress / 8.0)) + "%", Vector2(380, 455), 20, LIGHT)
 		elif event_name == "ASSAULT":
 			for i in range(5):
 				var station := _assault_stations()[i]
@@ -1195,7 +1267,10 @@ func _draw() -> void:
 				_draw_text(str(i + 1), station + Vector2(-6, 5), 18, LIGHT)
 				if i == assault_station and not assault_fired[i]:
 					draw_rect(Rect2(station - Vector2(41, 29), Vector2(82, 64)), GOLD, false, 2.0)
-			draw_circle(Vector2(480, 185), 23, RED)
+			draw_circle(Vector2(480, 185), 30, RED)
+			draw_circle(Vector2(480, 185), 20, LIGHT)
+			draw_circle(Vector2(480, 185), 10, RED)
+			_draw_text("TARGET HP: " + str(maxi(0, assault_target_hp)), Vector2(390, 143), 16, GOLD)
 			draw_circle(assault_projectile, 8, GOLD)
 			if assault_roll_time > 0.0:
 				var roll_progress := 1.0 - assault_roll_time / 0.6
@@ -1264,6 +1339,7 @@ func _load_progress() -> void:
 		unlock_gladiator = cfg.get_value("progress", "gladiator_unlocked", false)
 		season_wins = cfg.get_value("progress", "season_wins", 0)
 		highest_era_unlocked = int(cfg.get_value("progress", "highest_era_unlocked", 0))
+		era_index = mini(highest_era_unlocked, era_labels.size() - 1)
 
 func _save_progress() -> void:
 	var cfg := ConfigFile.new()
