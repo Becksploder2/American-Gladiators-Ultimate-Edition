@@ -381,7 +381,7 @@ func _draw_era_arena() -> void:
 	# Original US series: S1A Roman-style raised stands; S1B+ modern indoor arena.
 	# This is a reference-informed procedural backdrop, not a frame-accurate recreation.
 	var is_roman := era_index == 0
-	var is_modern := era_labels[era_index] == "2026"
+	var is_modern: bool = era_labels[era_index] == "2026"
 	var wall := Color("#504638") if is_roman else Color("#14274a")
 	var floor_color := Color("#89775a") if is_roman else Color("#3a6582")
 	var metal := Color("#c7b9a0") if is_roman else Color("#a5b7cc")
