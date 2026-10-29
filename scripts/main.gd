@@ -348,7 +348,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif screen == "INTRO":
 			screen = "MENU"
 		elif screen == "MENU":
-			if key == KEY_R:
+			if key == KEY_I:
+				var intro_cfg := ConfigFile.new()
+				intro_cfg.load("user://intro_studio.cfg")
+				intro_cfg.set_value("intro", "era", "2026" if era_index == 12 else era_labels[era_index])
+				intro_cfg.save("user://intro_studio.cfg")
+				get_tree().change_scene_to_file("res://scenes/intro_3d.tscn")
+				return
+			elif key == KEY_R:
 				screen = "ROSTER"
 				roster_page = 0
 			elif key == KEY_E:
