@@ -42,9 +42,10 @@ func _build_arena() -> void:
 	_box(self, "Gold perimeter right", Vector3(12, 0.02, 0), Vector3(0.12, 0.04, 16), Color("#e5b84d"))
 	_box(self, "Gold baseline", Vector3(0, 0.02, 8), Vector3(24, 0.04, 0.12), Color("#e5b84d"))
 	_box(self, "Rear arena wall", Vector3(0, 2.5, -9.2), Vector3(29, 5, 0.8), Color("#182c58"))
-	for x in [-9.0, 0.0, 9.0]:
-		_cylinder(self, "Season 1A scoring cylinder", Vector3(x, 0.58, -3.0), 0.8, 1.15, Color("#aab4bf"))
-		_cylinder(self, "Goal rim", Vector3(x, 1.19, -3.0), 0.88, 0.12, Color("#f0c44d"))
+	# Season 1A: five scoring cylinders along the curved end of the half-circle.
+	for goal in [Vector3(-9, 0, -1), Vector3(-5.3, 0, -5.1), Vector3(0, 0, -6.5), Vector3(5.3, 0, -5.1), Vector3(9, 0, -1)]:
+		_cylinder(self, "Season 1A scoring cylinder", goal + Vector3(0, 0.58, 0), 0.8, 1.15, Color("#aab4bf"))
+		_cylinder(self, "Goal rim", goal + Vector3(0, 1.19, 0), 0.88, 0.12, Color("#f0c44d"))
 	for x in [-10.0, 10.0]:
 		_cylinder(self, "Ball rack", Vector3(x, 0.6, 5.9), 0.65, 1.2, Color("#a9a9aa"))
 	for row in range(4):
