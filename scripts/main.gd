@@ -69,6 +69,9 @@ var assault_station := 0
 var assault_fired: Array[bool] = [false, false, false, false, false]
 var assault_projectile := Vector2(-100, -100)
 var assault_timer := 1.0
+var assault_jump_time := 0.0
+var assault_roll_time := 0.0
+var assault_roll_direction := Vector2.RIGHT
 var score := 0
 var time_left := 50.0
 var whistle_countdown := 0.0
@@ -467,6 +470,8 @@ func _start_event() -> void:
 	assault_fired = [false, false, false, false, false]
 	assault_projectile = Vector2(-100, -100)
 	assault_timer = 1.0
+	assault_jump_time = 0.0
+	assault_roll_time = 0.0
 	powerball_defenders = [Vector2(310, 295), Vector2(540, 295), Vector2(760, 295)]
 	ball = Vector2(380, 295)
 	holding_ball = false
@@ -772,13 +777,26 @@ func _process(delta: float) -> void:
 			message = "READY FOR NEXT SWING - Z TO LAUNCH"
 	elif event_name == "ASSAULT":
 		var stations := _assault_stations()
-		if Input.is_action_just_pressed("pickup_weapon") and contender.distance_to(stations[assault_station]) < 50:
-			message = "WEAPON READY - Z TO FIRE"
+		if Input.is_action_just_pressed("secondary_action") and contender.distance_to(stations[assault_station]) < 50:
+			message = "WEAPON READY - A TO FIRE"
 		if Input.is_action_just_pressed("primary_action") and contender.distance_to(stations[assault_station]) < 50 and not assault_fired[assault_station]:
 			assault_fired[assault_station] = true
 			score += 1
 			message = "WEAPON FIRED! +1"
 			assault_station = mini(4, assault_station + 1)
+		assault_jump_time = maxf(0.0, assault_jump_time - delta)
+		assault_roll_time = maxf(0.0, assault_roll_time - delta)
+		if Input.is_action_just_pressed("pickup_weapon") and assault_jump_time <= 0.0 and assault_roll_time <= 0.0:
+			assault_jump_time = 0.55
+			message = "JUMP!"
+		if era_index >= 1 and era_index < 12 and Input.is_action_just_pressed("fourth_face") and assault_roll_time <= 0.0 and assault_jump_time <= 0.0:
+			assault_roll_time = 0.6
+			assault_roll_direction = movement.normalized() if movement.length() > 0.1 else Vector2.RIGHT
+			message = "ROLL-A-DOPE!"
+		if assault_roll_time > 0.0:
+			contender += assault_roll_direction * 230.0 * delta
+			contender.x = clampf(contender.x, 60.0, WIDTH - 60.0)
+			contender.y = clampf(contender.y, 180.0, HEIGHT - 75.0)
 		assault_timer -= delta
 		if assault_timer <= 0:
 			assault_projectile = Vector2(480, 185)
@@ -788,7 +806,7 @@ func _process(delta: float) -> void:
 		for station in stations:
 			if contender.distance_to(station) < 35:
 				safe = true
-		if not safe and assault_projectile.distance_to(contender) < 20:
+		if not safe and assault_projectile.distance_to(contender) < (10.0 if assault_roll_time > 0.0 else 14.0 if assault_jump_time > 0.0 else 20.0):
 			screen = "RESULT"
 			message = "DIRECT HIT - ROUND OVER"
 	else:
@@ -1081,8 +1099,19 @@ func _draw() -> void:
 				draw_rect(Rect2(station - Vector2(24, 12), Vector2(48, 24)), GREEN if assault_fired[i] else BLUE)
 			draw_circle(Vector2(480, 185), 23, RED)
 			draw_circle(assault_projectile, 8, GOLD)
-			_draw_character(contender, false)
+			if assault_roll_time > 0.0:
+				var roll_progress := 1.0 - assault_roll_time / 0.6
+				var roll_pos := contender + Vector2(0, 12.0 * sin(roll_progress * TAU))
+				draw_rect(Rect2(roll_pos - Vector2(25, 11), Vector2(50, 22)), BLUE)
+				draw_circle(roll_pos + assault_roll_direction * 19.0, 10.0, Color("#f1b98c"))
+				draw_line(roll_pos - assault_roll_direction * 20.0, roll_pos + assault_roll_direction * 20.0, GOLD, 3.0)
+			elif assault_jump_time > 0.0:
+				var jump_progress := 1.0 - assault_jump_time / 0.55
+				_draw_character(contender - Vector2(0, 64.0 * sin(jump_progress * PI)), false)
+			else:
+				_draw_character(contender, false)
 			_draw_character(gladiator, true)
+			_draw_text("A: FIRE   B: PICK UP   X: JUMP   Y: ROLL-A-DOPE (S1B+)", Vector2(145, 445), 16, GOLD)
 		else:
 			_draw_character(contender, false)
 			_draw_character(gladiator, true)
