@@ -41,6 +41,8 @@ var sound_player: AudioStreamPlayer
 var whistle_played := false
 var theme_player: AudioStreamPlayer
 var theme_picker: FileDialog
+var classic_logo: Texture2D = preload("res://assets/logos/classic.svg")
+var modern_logo: Texture2D = preload("res://assets/logos/prime_2026.svg")
 var roster_page := 0
 var roster_names: Array[String] = []
 
@@ -246,7 +248,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_refresh_schedule()
 			elif key == KEY_1:
 				_start_season("ERAS")
-			elif key == KEY_2:
+			elif key == KEY_2 and unlock_gladiator:
 				_start_season("MODERN")
 			elif key == KEY_3 and unlock_gladiator:
 				screen = "GLADIATOR"
@@ -421,13 +423,15 @@ func _draw() -> void:
 		_draw_text("LEFT / RIGHT: PAGE     ESC: MENU     PAGE " + str(roster_page + 1), Vector2(65, 500), 16, GOLD)
 	elif screen == "MENU":
 		_draw_text("HOSTS: " + host_primary + " / " + host_secondary, Vector2(70, 110), 16, GOLD)
-		_draw_text("1  ERAS MODE (1989-2026)", Vector2(70, 166), 27)
-		_draw_text("2  MODERN SEASON (2026)", Vector2(70, 224), 27)
-		_draw_text("3  GLADIATOR MODE " + ("UNLOCKED" if unlock_gladiator else "[LOCKED]"), Vector2(70, 282), 25, GREEN if unlock_gladiator else RED)
-		_draw_text("4  CREATE A CONTENDER (PLANNED)", Vector2(70, 340), 23)
-		_draw_text("F5: IMPORT ORIGINAL TV THEME (WAV)", Vector2(70, 390), 18, GOLD)
-		_draw_text("E: SELECT ERA - " + era_labels[era_index] + "", Vector2(70, 421), 18, GOLD)
-		_draw_text("R: GLADIATOR ROSTER PREVIEW   |   Gladiator Creator locked.", Vector2(70, 455), 15)
+		draw_texture_rect(classic_logo, Rect2(70, 145, 340, 170), false)
+		_draw_text("1  ERAS MODE", Vector2(145, 327), 21, GOLD)
+		draw_texture_rect(modern_logo, Rect2(525, 145, 340, 170), false)
+		_draw_text("2  2026 MODE [LOCKED - ERAS VICTORY]", Vector2(532, 327), 16, RED)
+		_draw_text("3  GLADIATOR MODE " + ("UNLOCKED" if unlock_gladiator else "[LOCKED]"), Vector2(70, 358), 18, GREEN if unlock_gladiator else RED)
+		_draw_text("4  CREATE A CONTENDER (PLANNED)", Vector2(480, 358), 17)
+		_draw_text("F5: IMPORT ORIGINAL TV THEME (WAV)", Vector2(70, 398), 17, GOLD)
+		_draw_text("E: SELECT ERA - " + era_labels[era_index] + "", Vector2(70, 426), 17, GOLD)
+		_draw_text("R: GLADIATOR ROSTER PREVIEW   |   Gladiator Creator locked.", Vector2(70, 458), 15)
 	elif screen == "PLAY":
 		_draw_era_arena()
 		draw_rect(Rect2(64, 169, 832, 270), Color("#286ba9"), false, 6)
