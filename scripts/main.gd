@@ -96,6 +96,7 @@ var message := ""
 var hud_font: Font = ThemeDB.fallback_font
 var sound_player: AudioStreamPlayer
 var whistle_played := false
+var music_director: Node
 var theme_player: AudioStreamPlayer
 var theme_slot := "early"
 var theme_picker: FileDialog
@@ -108,6 +109,8 @@ var roster_names: Array[String] = []
 func _ready() -> void:
 	_install_input_actions()
 	_setup_audio()
+	music_director = load("res://scripts/music_director.gd").new()
+	add_child(music_director)
 	_load_progress()
 	var music_cfg := ConfigFile.new()
 	if music_cfg.load("user://music.cfg") == OK:
@@ -454,6 +457,8 @@ func _start_event() -> void:
 		theme_player.stop()
 	screen = "PLAY"
 	event_name = upcoming_events[event_index]
+	music_director.set_era("2026" if mode == "MODERN" else era_labels[era_index])
+	music_director.cue("eliminator" if event_name.contains("ELIMINATOR") else "event_" + event_name)
 	event_player_start = score
 	ai_score = 0
 	time_left = _event_duration(event_name)
@@ -582,6 +587,7 @@ func _process(delta: float) -> void:
 			whistle_played = true
 			_play_tone(1150.0, 0.45)
 			message = "WHISTLE! GO!"
+			music_director.cue("event_start")
 		queue_redraw()
 		return
 	if event_name != "HUMAN CANNONBALL" and event_name != "BREAKTHROUGH AND CONQUER":
@@ -627,12 +633,14 @@ func _process(delta: float) -> void:
 					score += points
 					holding_ball = false
 					message = "SCORE! +" + str(points)
+					music_director.cue("score")
 					_play_tone(740.0, 0.18)
 					break
 		for defender in powerball_defenders:
 			if holding_ball and contender.distance_to(defender) < 30:
 				holding_ball = false
 				message = "GLADIATOR BLOCK!"
+				music_director.cue("block")
 				if era_index == 0:
 					contender = Vector2(150, 465)
 					powerball_out = true
