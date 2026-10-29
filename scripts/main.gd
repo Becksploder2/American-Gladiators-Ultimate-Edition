@@ -337,7 +337,7 @@ func _prepare_tournament() -> void:
 	match_cpu_points = 0
 
 func _start_season(chosen_mode: String) -> void:
-		mode = chosen_mode
+	mode = chosen_mode
 	if mode == "ERAS":
 		era_index = mini(era_index, highest_era_unlocked)
 	elif mode == "MODERN":
