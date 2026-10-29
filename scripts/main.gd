@@ -206,7 +206,9 @@ func _refresh_schedule() -> void:
 		events.erase("HUMAN CANNONBALL")
 		events.append("SKYTRACK")
 	if era_index >= 8:
-		events.append_array(["TUG O WAR", "WHIPLASH", "SNAPBACK", "PYRAMID"])
+		# Season 5 replaces The Maze with Gauntlet.
+		events.erase("THE MAZE")
+		events.append_array(["GAUNTLET", "TUG O WAR", "WHIPLASH", "SNAPBACK", "PYRAMID"])
 	events.append("ELIMINATOR")
 	upcoming_events = events
 
