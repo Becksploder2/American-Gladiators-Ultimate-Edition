@@ -27,6 +27,8 @@ var holding_ball := false
 var ai_contender := Vector2(815, 395)
 var ai_holding := false
 var ai_score := 0
+var ai_recovery := 0.0
+var ai_goal_index := 0
 var assault_station := 0
 var assault_fired: Array[bool] = [false, false, false, false, false]
 var assault_projectile := Vector2(-100, -100)
@@ -200,7 +202,9 @@ func _update_hosts() -> void:
 func _refresh_schedule() -> void:
 	_update_hosts()
 	if mode == "MODERN" or era_index == 12:
-		upcoming_events = ["POWERBALL 2026", "JOUST 2026", "ELIMINATOR 2026"]
+		upcoming_events = ["POWERBALL 2026", "JOUST 2026"]
+		upcoming_events.shuffle()
+		upcoming_events.append("ELIMINATOR 2026")
 		return
 	# Classic US event introduction timeline. Event implementations remain prototypes.
 	var events: Array[String] = ["POWERBALL", "ASSAULT", "JOUST", "HUMAN CANNONBALL", "BREAKTHROUGH AND CONQUER"]
@@ -217,6 +221,7 @@ func _refresh_schedule() -> void:
 		# Season 5 replaces The Maze with Gauntlet.
 		events.erase("THE MAZE")
 		events.append_array(["GAUNTLET", "TUG O WAR", "WHIPLASH", "SNAPBACK", "PYRAMID"])
+	events.shuffle()
 	events.append("ELIMINATOR")
 	upcoming_events = events
 
@@ -322,6 +327,8 @@ func _start_event() -> void:
 	ai_contender = Vector2(815, 395)
 	ai_holding = false
 	ai_score = 0
+	ai_recovery = 0.0
+	ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
 	assault_station = 0
 	assault_fired = [false, false, false, false, false]
 	assault_projectile = Vector2(-100, -100)
@@ -367,13 +374,16 @@ func _process(delta: float) -> void:
 	if event_name.contains("POWERBALL"):
 		var holder := Vector2(145, 395)
 		var cpu_holder := Vector2(815, 395)
-		var cpu_target := _powerball_goals()[0] if ai_holding else cpu_holder
+		ai_recovery = maxf(0.0, ai_recovery - delta)
+		var cpu_target := _powerball_goals()[ai_goal_index] if ai_holding else cpu_holder
 		ai_contender = ai_contender.move_toward(cpu_target, delta * 115.0)
-		if not ai_holding and ai_contender.distance_to(cpu_holder) < 16:
+		if not ai_holding and ai_recovery <= 0.0 and ai_contender.distance_to(cpu_holder) < 24:
 			ai_holding = true
-		if ai_holding and ai_contender.distance_to(_powerball_goals()[0]) < 40:
-			ai_score += 1
+		if ai_holding and ai_contender.distance_to(_powerball_goals()[ai_goal_index]) < 40:
+			ai_score += 2 if ai_goal_index == 1 and _powerball_goals().size() == 3 else 1
 			ai_holding = false
+			ai_recovery = 0.8
+			ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
 		for i in range(powerball_defenders.size()):
 			var target := ai_contender if i == 2 else contender
 			powerball_defenders[i] = powerball_defenders[i].move_toward(target, delta * ai_speed)
@@ -395,6 +405,7 @@ func _process(delta: float) -> void:
 				message = "GLADIATOR BLOCK!"
 			if ai_holding and ai_contender.distance_to(defender) < 30:
 				ai_holding = false
+				ai_recovery = 0.8
 	elif event_name == "ASSAULT":
 		var stations := _assault_stations()
 		if Input.is_action_just_pressed("pickup_weapon") and contender.distance_to(stations[assault_station]) < 50:
@@ -454,6 +465,21 @@ func _draw_character(pos: Vector2, gladiator_side: bool) -> void:
 	draw_rect(Rect2(pos + Vector2(2, 18), Vector2(11, 23)), suit)
 	draw_rect(Rect2(pos + Vector2(-13, 39), Vector2(11, 7)), Color("#1a233e"))
 	draw_rect(Rect2(pos + Vector2(2, 39), Vector2(11, 7)), Color("#1a233e"))
+
+func _draw_contender_uniform(pos: Vector2, is_cpu: bool) -> void:
+	_draw_character(pos, false)
+	if era_index != 0:
+		return
+	var shirt := Color("#1d3e85") if is_cpu else Color("#f0f1ee")
+	var shorts := Color("#171c2d") if is_cpu else Color("#1d3e85")
+	draw_rect(Rect2(pos + Vector2(-15, -10), Vector2(30, 28)), shirt)
+	draw_rect(Rect2(pos + Vector2(-13, 18), Vector2(11, 23)), shorts)
+	draw_rect(Rect2(pos + Vector2(2, 18), Vector2(11, 23)), shorts)
+	if is_cpu:
+		for offset in [-8, -4, 0]:
+			draw_rect(Rect2(pos + Vector2(-13, offset), Vector2(4, 2)), Color("#d9dce3"))
+	else:
+		draw_rect(Rect2(pos + Vector2(-15, -10), Vector2(5, 28)), Color("#1d3e85"))
 
 func _draw_era_arena() -> void:
 	# Original US series: S1A Roman-style raised stands; S1B+ modern indoor arena.
@@ -558,13 +584,14 @@ func _draw() -> void:
 		draw_rect(Rect2(64, 169, 832, 270), Color("#286ba9"), false, 6)
 		if event_name.contains("POWERBALL"):
 			for goal in _powerball_goals():
-				draw_circle(goal, 32, GOLD)
-				draw_circle(goal, 22, Color("#28394b"))
+				draw_rect(Rect2(goal + Vector2(-29, -3), Vector2(58, 30)), Color("#9b9da4"))
+				draw_circle(goal, 29, GOLD)
+				draw_circle(goal, 21, Color("#28394b"))
 			for holder in [Vector2(145, 395), Vector2(815, 395)]:
 				draw_rect(Rect2(holder - Vector2(22, 15), Vector2(44, 30)), GOLD, false, 3)
 				draw_circle(holder, 9, GOLD)
-			_draw_character(ai_contender, false)
-			_draw_character(contender, false)
+			_draw_contender_uniform(ai_contender, true)
+			_draw_contender_uniform(contender, false)
 			for defender in powerball_defenders:
 				_draw_character(defender, true)
 		elif event_name == "ASSAULT":
