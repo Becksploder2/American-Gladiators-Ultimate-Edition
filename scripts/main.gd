@@ -410,6 +410,45 @@ func _start_season(chosen_mode: String) -> void:
 	_start_event()
 	_play_era_theme()
 
+func _event_duration(event: String) -> float:
+	match event:
+		"ASSAULT", "ATLASPHERE", "HANG TOUGH", "SKYTRACK":
+			return 60.0
+		"POWERBALL", "SUPER POWERBALL", "THE MAZE", "SWINGSHOT", "PYRAMID":
+			return 45.0
+		"JOUST", "TUG O WAR", "WHIPLASH":
+			return 30.0
+		"THE WALL":
+			return 120.0 if era_index == 1 else 60.0
+		"GAUNTLET":
+			return 20.0 if era_index >= 11 else 25.0
+		_:
+			return 45.0
+
+
+func _draw_ag_clock() -> void:
+	if event_name == "HUMAN CANNONBALL" or event_name == "BREAKTHROUGH AND CONQUER":
+		return
+	var seconds: int = maxi(0, ceili(time_left))
+	var digits := "%02d:%02d" % [int(seconds / 60), seconds % 60]
+	var clock_color := RED if seconds <= 10 and whistle_countdown <= 0.0 else GOLD
+	if mode == "MODERN" or era_index == 12:
+		draw_rect(Rect2(758, 86, 157, 57), Color("#15263b"))
+		draw_rect(Rect2(758, 86, 157, 57), LIGHT, false, 2)
+		_draw_text(digits, Vector2(774, 124), 30, clock_color)
+	elif era_index < 6:
+		var shield := PackedVector2Array([Vector2(782, 85), Vector2(895, 85), Vector2(907, 99), Vector2(896, 129), Vector2(840, 147), Vector2(781, 129), Vector2(769, 99), Vector2(782, 85)])
+		draw_colored_polygon(shield, Color("#173c83"))
+		draw_polyline(shield, GOLD, 3.0)
+		_draw_text("AG", Vector2(823, 105), 15, LIGHT)
+		_draw_text(digits, Vector2(783, 131), 27, clock_color)
+	else:
+		draw_rect(Rect2(761, 83, 153, 65), Color("#080b16"))
+		draw_rect(Rect2(761, 83, 153, 65), GOLD, false, 2)
+		_draw_text("ARMITRON", Vector2(773, 102), 17, LIGHT)
+		_draw_text(digits, Vector2(778, 137), 29, clock_color)
+
+
 func _start_event() -> void:
 	if theme_player.playing:
 		theme_player.stop()
@@ -417,7 +456,7 @@ func _start_event() -> void:
 	event_name = upcoming_events[event_index]
 	event_player_start = score
 	ai_score = 0
-	time_left = 60.0 if event_name == "ASSAULT" or (event_name == "JOUST" and era_index == 0 and mode == "ERAS") else 45.0
+	time_left = _event_duration(event_name)
 	whistle_countdown = 3.0 if mode == "MODERN" else 1.8
 	contender = Vector2(150, 295)
 	gladiator = Vector2(680, 295)
@@ -866,6 +905,18 @@ func _draw_character(pos: Vector2, gladiator_side: bool) -> void:
 func _draw_contender_uniform(pos: Vector2, is_cpu: bool) -> void:
 	_draw_character(pos, false)
 	if era_index != 0:
+		var primary := RED if not is_cpu else BLUE
+		if era_index >= 8 and era_index < 12:
+			primary = Color("#11131c") if not is_cpu else Color("#e7e8ef")
+		draw_rect(Rect2(pos + Vector2(-15, -10), Vector2(30, 28)), primary)
+		draw_rect(Rect2(pos + Vector2(-13, 18), Vector2(11, 23)), primary)
+		draw_rect(Rect2(pos + Vector2(2, 18), Vector2(11, 23)), primary)
+		if era_index >= 8 and era_index < 12:
+			var trim := LIGHT if not is_cpu else INK
+			draw_rect(Rect2(pos + Vector2(-15, -10), Vector2(3, 28)), trim)
+			draw_rect(Rect2(pos + Vector2(12, -10), Vector2(3, 28)), trim)
+		draw_rect(Rect2(pos + Vector2(-7, -3), Vector2(14, 10)), GOLD)
+		_draw_text("AG", pos + Vector2(-6, 5), 9, INK)
 		return
 	var shirt := Color("#1d3e85") if is_cpu else Color("#f0f1ee")
 	var shorts := Color("#171c2d") if is_cpu else Color("#1d3e85")
@@ -1118,10 +1169,7 @@ func _draw() -> void:
 		_draw_text(mode + " " + era_labels[era_index] + " - " + event_name, Vector2(63, 126), 22, GOLD)
 		_draw_text(host_primary + " / " + host_secondary, Vector2(64, 145), 13, LIGHT)
 		_draw_text("YOU " + str(score) + " CPU " + str(ai_score), Vector2(535, 85), 18)
-		draw_rect(Rect2(766, 88, 137, 49), Color("#080b16"))
-		draw_rect(Rect2(766, 88, 137, 49), GOLD, false, 3)
-		_draw_text(":" + str(int(maxf(0.0, time_left)) % 60).pad_zeros(2), Vector2(818, 120), 27, GOLD)
-		_draw_text(str(int(maxf(0.0, time_left)) / 60).pad_zeros(2), Vector2(776, 120), 27, GOLD)
+		_draw_ag_clock()
 		_draw_text(message, Vector2(70, 484), 21, GOLD)
 		if whistle_countdown > 0:
 			_draw_text("READY... " + (str(ceili(whistle_countdown)) if mode == "MODERN" else "WHISTLE"), Vector2(360, 285), 26, GOLD)
