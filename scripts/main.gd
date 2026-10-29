@@ -42,6 +42,10 @@ var conquer_won := false
 var conquer_push := 0.0
 var conquer_clock := 10.0
 var breakthrough_guard_cooldown := 0.0
+var joust_fall_timer := 0.0
+var joust_fall_loser := ""
+var joust_fall_trapdoor := false
+var joust_fall_origin := Vector2.ZERO
 var joust_player_hp := 100.0
 var joust_gladiator_hp := 100.0
 var joust_cpu_attack_cooldown := 0.0
@@ -407,6 +411,10 @@ func _start_event() -> void:
 	if event_name == "BREAKTHROUGH AND CONQUER":
 		contender = Vector2(145, 320)
 		gladiator = Vector2(485, 320)
+	joust_fall_timer = 0.0
+	joust_fall_loser = ""
+	joust_fall_trapdoor = false
+	joust_fall_origin = Vector2.ZERO
 	joust_player_hp = 100.0
 	joust_gladiator_hp = 100.0
 	joust_cpu_attack_cooldown = 1.1
@@ -625,6 +633,12 @@ func _process(delta: float) -> void:
 				message = "CONQUER TIME EXPIRED!"
 				screen = "RESULT"
 	elif event_name == "JOUST" and mode == "ERAS":
+		if joust_finished:
+			joust_fall_timer += delta
+			if joust_fall_timer >= 1.25:
+				screen = "RESULT"
+			queue_redraw()
+			return
 		joust_survival += delta
 		joust_attack_cooldown = maxf(0.0, joust_attack_cooldown - delta)
 		var previous_milestone := mini(5, int((joust_survival - delta) / 10.0))
@@ -650,15 +664,19 @@ func _process(delta: float) -> void:
 			joust_player_hp = maxf(0.0, joust_player_hp - 18.0)
 			contender.x -= 25.0
 			message = "GLADIATOR COUNTERATTACK!"
-		if gladiator.x >= 755.0 or joust_gladiator_hp <= 0.0:
+		if (era_index == 0 and gladiator.x >= 755.0) or joust_gladiator_hp <= 0.0:
 			score = event_player_start + (100 if era_index == 0 else 10)
 			joust_finished = true
-			message = "GLADIATOR THROUGH TRAPDOOR! 100 POINTS!"
-		elif contender.x <= 205.0 or joust_player_hp <= 0.0:
+			joust_fall_loser = "GLADIATOR"
+			joust_fall_origin = gladiator
+			joust_fall_trapdoor = era_index == 0 and gladiator.x >= 755.0
+			message = "GLADIATOR FALLS! VICTORY!"
+		elif (era_index == 0 and contender.x <= 205.0) or joust_player_hp <= 0.0:
 			joust_finished = true
-			message = "CONTENDER FELL THROUGH TRAPDOOR!"
-		if joust_finished:
-			screen = "RESULT"
+			joust_fall_loser = "CONTENDER"
+			joust_fall_origin = contender
+			joust_fall_trapdoor = era_index == 0 and contender.x <= 205.0
+			message = "CONTENDER FALLS! GLADIATOR WINS!"
 		elif time_left <= 0.0:
 			score = event_player_start + (50 if era_index == 0 else 0)
 			screen = "RESULT"
@@ -716,7 +734,7 @@ func _process(delta: float) -> void:
 			message = "DIRECT HIT - ROUND OVER"
 	else:
 		gladiator = gladiator.move_toward(contender, delta * ai_speed)
-	if (time_left <= 0 and not (event_name == "JOUST" and era_index == 0 and mode == "ERAS")) or (event_name == "HUMAN CANNONBALL" and cannon_resolved and cannon_attempts >= 3):
+	if (time_left <= 0 and not (event_name == "JOUST" and mode == "ERAS")) or (event_name == "HUMAN CANNONBALL" and cannon_resolved and cannon_attempts >= 3):
 		screen = "RESULT"
 		time_left = 0.0
 		_play_tone(950.0, 0.7)
@@ -943,12 +961,23 @@ func _draw() -> void:
 			for i in range(14 if era_index == 0 else 0):
 				draw_line(Vector2(198 + i * 40, 349), Vector2(198 + i * 40, 370), INK, 2.0)
 			if era_index == 0:
-				draw_rect(Rect2(185, 349, 70, 22), RED, false, 3.0)
-				draw_rect(Rect2(705, 349, 70, 22), RED, false, 3.0)
+				draw_rect(Rect2(185, 349), Vector2(70, 22) if not (joust_finished and joust_fall_trapdoor and joust_fall_loser == "CONTENDER") else Vector2(70, 8)), RED, false, 3.0)
+				draw_rect(Rect2(705, 349), Vector2(70, 22) if not (joust_finished and joust_fall_trapdoor and joust_fall_loser == "GLADIATOR") else Vector2(70, 8)), RED, false, 3.0)
 			draw_line(Vector2(185, 349), Vector2(100, 205), GOLD, 4.0)
 			draw_line(Vector2(775, 349), Vector2(860, 205), GOLD, 4.0)
-			_draw_character(contender, false)
-			_draw_character(gladiator, true)
+			if joust_finished:
+				var fall_progress := clampf(joust_fall_timer / 1.25, 0.0, 1.0)
+				var fall_offset := Vector2(0, 220.0 * fall_progress * fall_progress)
+				if joust_fall_loser == "CONTENDER":
+					_draw_character(joust_fall_origin + fall_offset, false)
+					_draw_character(gladiator, true)
+				else:
+					_draw_character(contender, false)
+					_draw_character(joust_fall_origin + fall_offset, true)
+				_draw_text("FALL!", Vector2(440, 250), 31, GOLD)
+			else:
+				_draw_character(contender, false)
+				_draw_character(gladiator, true)
 			draw_line(contender + Vector2(12, -9), contender + Vector2(72, -34), GOLD, 9.0)
 			draw_line(gladiator + Vector2(-12, -9), gladiator + Vector2(-72, -34), GOLD, 9.0)
 			draw_rect(Rect2(250, 175, 205, 17), RED)
