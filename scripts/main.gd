@@ -581,7 +581,15 @@ func _draw() -> void:
 		_draw_text("R: GLADIATOR ROSTER PREVIEW   |   Gladiator Creator locked.", Vector2(70, 458), 15)
 	elif screen == "PLAY":
 		_draw_era_arena()
-		draw_rect(Rect2(64, 169, 832, 270), Color("#286ba9"), false, 6)
+		if event_name.contains("POWERBALL") and era_index == 0:
+			# Season 1A Powerball: green playing surface with gold semicircular boundary.
+			var center := Vector2(480, 445)
+			var radius := 390.0
+			draw_colored_polygon(PackedVector2Array([Vector2(90, 445), Vector2(870, 445), Vector2(870, 220), Vector2(90, 220)]), Color("#287044"))
+			draw_arc(center, radius, PI, TAU, 64, Color("#e7bb45"), 9.0)
+			draw_line(Vector2(90, 445), Vector2(870, 445), Color("#e7bb45"), 8.0)
+		else:
+			draw_rect(Rect2(64, 169, 832, 270), Color("#286ba9"), false, 6)
 		if event_name.contains("POWERBALL"):
 			for goal in _powerball_goals():
 				draw_rect(Rect2(goal + Vector2(-29, -3), Vector2(58, 30)), Color("#9b9da4"))
