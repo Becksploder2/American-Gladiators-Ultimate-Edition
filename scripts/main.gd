@@ -34,11 +34,35 @@ var message := ""
 var hud_font: Font = ThemeDB.fallback_font
 
 func _ready() -> void:
+	_install_input_actions()
 	_load_progress()
 	Input.joy_connection_changed.connect(_controller_changed)
 	_controller_changed(0, false)
 	_refresh_schedule()
 	queue_redraw()
+
+func _install_input_actions() -> void:
+	_bind_action("move_left", KEY_A, JOY_BUTTON_DPAD_LEFT, JOY_AXIS_LEFT_X, -1.0)
+	_bind_action("move_right", KEY_D, JOY_BUTTON_DPAD_RIGHT, JOY_AXIS_LEFT_X, 1.0)
+	_bind_action("move_up", KEY_W, JOY_BUTTON_DPAD_UP, JOY_AXIS_LEFT_Y, -1.0)
+	_bind_action("move_down", KEY_S, JOY_BUTTON_DPAD_DOWN, JOY_AXIS_LEFT_Y, 1.0)
+	_bind_action("primary_action", KEY_SPACE, JOY_BUTTON_A, -1, 0.0)
+	_bind_action("dash", KEY_SHIFT, JOY_BUTTON_RIGHT_SHOULDER, -1, 0.0)
+
+func _bind_action(action: String, key: Key, button: int, axis: int, axis_direction: float) -> void:
+	if not InputMap.has_action(action):
+		InputMap.add_action(action, 0.2)
+	var keyboard := InputEventKey.new()
+	keyboard.physical_keycode = key
+	InputMap.action_add_event(action, keyboard)
+	var pad := InputEventJoypadButton.new()
+	pad.button_index = button
+	InputMap.action_add_event(action, pad)
+	if axis >= 0:
+		var stick := InputEventJoypadMotion.new()
+		stick.axis = axis
+		stick.axis_value = axis_direction
+		InputMap.action_add_event(action, stick)
 
 func _controller_changed(_device: int, _connected: bool) -> void:
 	var pads := Input.get_connected_joypads()
