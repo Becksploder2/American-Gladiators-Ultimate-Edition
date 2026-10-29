@@ -31,6 +31,11 @@ var ai_recovery := 0.0
 var ai_goal_index := 0
 var powerball_out := false
 var powerball_reset_time := 0.0
+var breakthrough_juke_time := 0.0
+var breakthrough_juke_cooldown := 0.0
+var breakthrough_tackle_time := 0.0
+var conquer_grab_limb := -1
+var conquer_grab_cooldown := 0.0
 var breakthrough_phase := 0
 var breakthrough_won := false
 var conquer_won := false
@@ -107,6 +112,7 @@ func _install_input_actions() -> void:
 	_bind_action("secondary_action", KEY_X, JOY_BUTTON_B, -1, 0.0)
 	_bind_action("pickup_weapon", KEY_C, JOY_BUTTON_X, -1, 0.0)
 	_bind_action("dash", KEY_SHIFT, JOY_BUTTON_RIGHT_SHOULDER, -1, 0.0)
+	_bind_action("fourth_face", KEY_V, JOY_BUTTON_Y, -1, 0.0)
 
 # Genesis-style keyboard layout: arrow D-pad, Z=A, X=B, C=C.
 # Actions B and C are reserved for event-specific behavior where not yet implemented.
@@ -384,6 +390,11 @@ func _start_event() -> void:
 	powerball_reset_time = 0.0
 	ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
 	breakthrough_phase = 0
+	breakthrough_juke_time = 0.0
+	breakthrough_juke_cooldown = 0.0
+	breakthrough_tackle_time = 0.0
+	conquer_grab_limb = -1
+	conquer_grab_cooldown = 0.0
 	breakthrough_won = false
 	conquer_won = false
 	conquer_push = 0.0
@@ -537,15 +548,27 @@ func _process(delta: float) -> void:
 	elif event_name == "BREAKTHROUGH AND CONQUER":
 		if breakthrough_phase == 0:
 			# Breakthrough: get past the defender and enter the marked end zone.
+			breakthrough_juke_time = maxf(0.0, breakthrough_juke_time - delta)
+			breakthrough_juke_cooldown = maxf(0.0, breakthrough_juke_cooldown - delta)
+			breakthrough_tackle_time = maxf(0.0, breakthrough_tackle_time - delta)
+			if Input.is_action_just_pressed("secondary_action") and breakthrough_juke_cooldown <= 0.0:
+				breakthrough_juke_time = 0.45
+				breakthrough_juke_cooldown = 1.4
+				contender.y = clampf(contender.y + (-75.0 if contender.y >= 320.0 else 75.0), 225.0, 400.0)
+				message = "JUKE! EVADE THE TACKLE!"
 			contender += movement * 205.0 * delta
 			contender.x = clampf(contender.x, 100.0, 865.0)
 			contender.y = clampf(contender.y, 225.0, 400.0)
 			gladiator = gladiator.move_toward(Vector2(contender.x + 48.0, contender.y), 115.0 * delta)
 			breakthrough_guard_cooldown = maxf(0.0, breakthrough_guard_cooldown - delta)
 			if contender.distance_to(gladiator) < 43.0 and breakthrough_guard_cooldown <= 0.0:
-				contender.x = maxf(105.0, contender.x - 100.0)
+				breakthrough_tackle_time = 0.5
 				breakthrough_guard_cooldown = 1.0
-				message = "TACKLED! KEEP DRIVING FOR THE END ZONE!"
+				if breakthrough_juke_time > 0.0:
+					message = "TACKLE MISSED! GREAT JUKE!"
+				else:
+					contender.x = maxf(105.0, contender.x - 100.0)
+					message = "TACKLED! KEEP DRIVING FOR THE END ZONE!"
 			if contender.x >= 825.0:
 				breakthrough_won = true
 				score += 40 if era_index == 0 else 5
@@ -559,13 +582,27 @@ func _process(delta: float) -> void:
 			contender += movement * 145.0 * delta
 			contender.x = clampf(contender.x, 280.0, 680.0)
 			contender.y = clampf(contender.y, 210.0, 425.0)
-			if contender.distance_to(gladiator) < 90.0 and Input.is_action_pressed("primary_action"):
-				var push_dir := (gladiator - Vector2(480, 320)).normalized()
-				if push_dir.length() < 0.1:
-					push_dir = Vector2(1, 0)
-				gladiator += push_dir * 95.0 * delta
+			conquer_grab_cooldown = maxf(0.0, conquer_grab_cooldown - delta)
+			var limb := -1
+			if Input.is_action_pressed("primary_action"):
+				limb = 0
+			elif Input.is_action_pressed("secondary_action"):
+				limb = 1
+			elif Input.is_action_pressed("pickup_weapon"):
+				limb = 2
+			elif Input.is_action_pressed("fourth_face"):
+				limb = 3
+			conquer_grab_limb = limb if contender.distance_to(gladiator) < 100.0 else -1
+			if conquer_grab_limb >= 0 and conquer_grab_cooldown <= 0.0:
+				var limb_names := ["LEFT LEG", "RIGHT LEG", "LEFT ARM", "RIGHT ARM"]
+				var limb_offsets := [Vector2(-14, 28), Vector2(14, 28), Vector2(-26, -10), Vector2(26, -10)]
+				var grab_point: Vector2 = gladiator + limb_offsets[conquer_grab_limb]
+				var pull_dir := (contender - grab_point).normalized()
+				if pull_dir.length() < 0.1:
+					pull_dir = Vector2(1, 0)
+				gladiator += pull_dir * 115.0 * delta
 				conquer_push += delta
-				message = "PUSH THE GLADIATOR OUT OF THE CIRCLE!"
+				message = "GRABBING " + limb_names[conquer_grab_limb] + " - PULL OUT!"
 			else:
 				gladiator = gladiator.move_toward(Vector2(480, 320), 22.0 * delta)
 			# A body part crossing the 105px circle boundary wins Conquer.
@@ -863,14 +900,21 @@ func _draw() -> void:
 				draw_rect(Rect2(825, 210, 50, 225), GOLD)
 				_draw_text("END ZONE", Vector2(746, 200), 17, GOLD)
 				_draw_character(contender, false)
+				if breakthrough_tackle_time > 0.0:
+					draw_line(gladiator + Vector2(-18, -12), gladiator + Vector2(-48, 10), GOLD, 9.0)
+					draw_line(gladiator + Vector2(18, -12), gladiator + Vector2(-40, 12), GOLD, 9.0)
+					draw_arc(gladiator, 38.0, PI, TAU, 12, RED, 4.0)
 				_draw_character(gladiator, true)
-				_draw_text("BREAKTHROUGH: REACH THE END ZONE", Vector2(255, 456), 18, GOLD)
+				_draw_text("BREAKTHROUGH: ARROWS MOVE  X/B JUKE", Vector2(255, 456), 18, GOLD)
 			else:
 				draw_circle(Vector2(480, 320), 105.0, LIGHT)
 				draw_circle(Vector2(480, 320), 101.0, Color("#2b6c95"))
 				_draw_character(contender, false)
 				_draw_character(gladiator, true)
-				_draw_text("CONQUER: HOLD Z NEAR GLADIATOR TO PUSH OUT", Vector2(210, 455), 18, GOLD)
+				if conquer_grab_limb >= 0:
+					var limb_offsets := [Vector2(-14, 28), Vector2(14, 28), Vector2(-26, -10), Vector2(26, -10)]
+					draw_line(contender, gladiator + limb_offsets[conquer_grab_limb], GOLD, 5.0)
+				_draw_text("GRAB: A/Z LEFT LEG  B/X RIGHT LEG  X/C LEFT ARM  Y/V RIGHT ARM", Vector2(105, 455), 14, GOLD)
 				_draw_text("TIME: " + str(ceili(conquer_clock)), Vector2(410, 202), 20, GOLD)
 		elif event_name == "JOUST" and era_index == 0 and mode == "ERAS":
 			# Season 1A drawbridge with hinged trapdoors at both ends.
