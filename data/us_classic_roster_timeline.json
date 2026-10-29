@@ -1,0 +1,156 @@
+{
+  "note": "US 1989–1996; user-provided roster timeline. Verify exact episodes and uniforms before gameplay gating.",
+  "seasons": {
+    "2": {
+      "debut": [
+        "Diamond",
+        "Ice",
+        "Thunder",
+        "Turbo"
+      ],
+      "returning": [
+        "Gemini",
+        "Nitro",
+        "Laser",
+        "Lace (Marisa Pare)",
+        "Blaze",
+        "Gold"
+      ],
+      "injured_end": [
+        "Turbo",
+        "Gold"
+      ]
+    },
+    "6": {
+      "return": [
+        "Nitro"
+      ],
+      "core": [
+        "Laser",
+        "Turbo",
+        "Sabre",
+        "Hawk",
+        "Sky",
+        "Siren",
+        "Ice",
+        "Jazz",
+        "Zap"
+      ],
+      "exit_end": [
+        "Zap"
+      ],
+      "changes": [
+        "Nitro retires from physical competition"
+      ]
+    },
+    "7": {
+      "core": [
+        "Laser",
+        "Turbo",
+        "Sabre",
+        "Hawk",
+        "Sky",
+        "Siren",
+        "Ice",
+        "Jazz"
+      ],
+      "host": [
+        "Mike Adamle",
+        "Dan Nitro Clark"
+      ]
+    },
+    "1A": {
+      "original": [
+        "Gemini",
+        "Nitro",
+        "Malibu",
+        "Lace (Marisa Pare)",
+        "Zap",
+        "Sunny"
+      ],
+      "brief": [
+        "Bronco",
+        "Jade"
+      ],
+      "exits": [
+        "Sunny",
+        "Bronco",
+        "Jade"
+      ]
+    },
+    "1B": {
+      "debut": [
+        "Laser",
+        "Blaze",
+        "Gold",
+        "Titan"
+      ],
+      "exits_end": [
+        "Malibu",
+        "Titan"
+      ],
+      "hiatus": [
+        "Zap"
+      ]
+    },
+    "3A-3B": {
+      "debut": [
+        "Tower",
+        "Storm",
+        "Viper (Grand Championship)"
+      ],
+      "return": [
+        "Zap"
+      ],
+      "changes": [
+        "Lace (Marisa Pare) exits midseason; Diamond fills in"
+      ],
+      "exit_end": [
+        "Blaze",
+        "Gold",
+        "Thunder"
+      ],
+      "hiatus": [
+        "Nitro",
+        "Ice"
+      ]
+    },
+    "4A-4B": {
+      "debut": [
+        "Sabre",
+        "Siren",
+        "Sky",
+        "Elektra",
+        "Cyclone",
+        "Havoc",
+        "Lace (Natalie Lennox, 2 episodes)"
+      ],
+      "return": [
+        "Turbo",
+        "Viper"
+      ],
+      "exit_end": [
+        "Gemini",
+        "Diamond"
+      ]
+    },
+    "5A-5B": {
+      "debut": [
+        "Hawk",
+        "Jazz",
+        "Rebel",
+        "Dallas (replacement)",
+        "Tank (replacement)"
+      ],
+      "return": [
+        "Ice"
+      ],
+      "exit_end": [
+        "Tower",
+        "Viper",
+        "Rebel",
+        "Elektra"
+      ]
+    }
+  }
+}
