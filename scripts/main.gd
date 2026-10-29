@@ -440,7 +440,7 @@ func _powerball_points(goal_index: int) -> int:
 func _process(delta: float) -> void:
 	if screen == "INTRO":
 		intro_time += delta
-		if intro_time > 12.0:
+		if intro_time > 3.5:
 			screen = "MENU"
 		queue_redraw()
 		return
@@ -700,9 +700,9 @@ func _draw() -> void:
 		for i in range(cast_names.size()):
 			var x := 95 + (i % 4) * 210
 			var y := 220 + int(i / 4) * 100
-			draw_rect(Rect2(x + 35, y, 30, 45), RED if i % 2 == 0 else BLUE)
-			_draw_text(cast_names[i], Vector2(x, y + 68), 15, GOLD)
-		_draw_text("PRESS ANY KEY TO SKIP", Vector2(330, 480), 18)
+			_draw_pixel_avatar(Vector2(x + 23, y - 5), cast_names[i], i)
+			_draw_text(cast_names[i], Vector2(x, y + 72), 15, GOLD)
+		_draw_text("GLADIATORS - PIXEL SPRITE PREVIEW", Vector2(315, 480), 18)
 	elif screen == "ROSTER":
 		_draw_text("GLADIATOR ROSTER - PIXEL AVATAR PREVIEWS", Vector2(65, 118), 24, GOLD)
 		var start := roster_page * 12
