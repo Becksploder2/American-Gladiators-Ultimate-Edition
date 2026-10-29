@@ -32,9 +32,12 @@ var upcoming_events: Array[String] = []
 var last_touch := ""
 var message := ""
 var hud_font: Font = ThemeDB.fallback_font
+var sound_player: AudioStreamPlayer
+var whistle_played := false
 
 func _ready() -> void:
 	_install_input_actions()
+	_setup_audio()
 	_load_progress()
 	Input.joy_connection_changed.connect(_controller_changed)
 	_controller_changed(0, false)
@@ -63,6 +66,27 @@ func _bind_action(action: String, key: Key, button: int, axis: int, axis_directi
 		stick.axis = axis
 		stick.axis_value = axis_direction
 		InputMap.action_add_event(action, stick)
+
+func _setup_audio() -> void:
+	sound_player = AudioStreamPlayer.new()
+	add_child(sound_player)
+	sound_player.volume_db = -8.0
+
+func _play_tone(frequency: float, duration: float) -> void:
+	var rate := 22050
+	var samples := PackedByteArray()
+	samples.resize(int(rate * duration) * 2)
+	for i in range(int(rate * duration)):
+		var fade := minf(1.0, float(i) / 180.0) * minf(1.0, float(int(rate * duration) - i) / 300.0)
+		var sample := int(sin(TAU * frequency * float(i) / float(rate)) * 9000.0 * fade)
+		samples.encode_s16(i * 2, sample)
+	var audio := AudioStreamWAV.new()
+	audio.format = AudioStreamWAV.FORMAT_16_BITS
+	audio.mix_rate = rate
+	audio.stereo = false
+	audio.data = samples
+	sound_player.stream = audio
+	sound_player.play()
 
 func _controller_changed(_device: int, _connected: bool) -> void:
 	var pads := Input.get_connected_joypads()
@@ -114,6 +138,8 @@ func _start_event() -> void:
 	ball = Vector2(380, 295)
 	holding_ball = false
 	message = "CONTENDER READY!  GLADIATOR READY!"
+	whistle_played = false
+	_play_tone(440.0, 0.22)
 	queue_redraw()
 
 func _process(delta: float) -> void:
@@ -121,6 +147,10 @@ func _process(delta: float) -> void:
 		return
 	if whistle_countdown > 0:
 		whistle_countdown = maxf(0, whistle_countdown - delta)
+		if whistle_countdown <= 0 and not whistle_played:
+			whistle_played = true
+			_play_tone(1150.0, 0.45)
+			message = "WHISTLE! GO!"
 		queue_redraw()
 		return
 	time_left -= delta
@@ -136,6 +166,7 @@ func _process(delta: float) -> void:
 			ball = contender + Vector2(0, -19)
 			if contender.distance_to(Vector2(850, 260)) < 52:
 				score += 2
+				_play_tone(740.0, 0.18)
 				holding_ball = false
 				ball = Vector2(380, randf_range(220, 395))
 				message = "SCORE! +2"
@@ -147,6 +178,8 @@ func _process(delta: float) -> void:
 			message = "GLADIATOR BLOCK!"
 	if time_left <= 0:
 		screen = "RESULT"
+		time_left = 0.0
+		_play_tone(950.0, 0.7)
 		message = "EVENT COMPLETE"
 	queue_redraw()
 
@@ -186,7 +219,10 @@ func _draw() -> void:
 		draw_rect(Rect2(gladiator - Vector2(15, 22), Vector2(30, 44)), RED)
 		_draw_text(mode + "  -  " + event_name, Vector2(63, 126), 23, GOLD)
 		_draw_text("POINTS " + str(score), Vector2(690, 126), 21)
-		_draw_text("TIME " + str(ceili(time_left)), Vector2(795, 126), 21)
+		draw_rect(Rect2(766, 88, 137, 49), Color("#080b16"))
+		draw_rect(Rect2(766, 88, 137, 49), GOLD, false, 3)
+		_draw_text(":" + str(int(maxf(0.0, time_left)) % 60).pad_zeros(2), Vector2(818, 120), 27, GOLD)
+		_draw_text(str(int(maxf(0.0, time_left)) / 60).pad_zeros(2), Vector2(776, 120), 27, GOLD)
 		_draw_text(message, Vector2(70, 484), 21, GOLD)
 		if whistle_countdown > 0:
 			_draw_text("READY... " + (str(ceili(whistle_countdown)) if mode == "MODERN" else "WHISTLE"), Vector2(360, 285), 26, GOLD)
