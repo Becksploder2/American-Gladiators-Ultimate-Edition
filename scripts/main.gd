@@ -13,7 +13,9 @@ const GREEN := Color("#2caa81")
 
 var mode := "ERAS"
 var era_index := 0
-var era_labels := ["S1A 1989", "S1B 1990", "1990-92", "1992-94", "1994-96", "2026"]
+var era_labels := ["S1A", "S1B", "S2A", "S2B", "S3A", "S3B", "S4A", "S4B", "S5A", "S5B", "S6A", "S6B", "2026"]
+var host_primary := "MIKE ADAMLE"
+var host_secondary := "JOE THEISMANN"
 var screen := "INTRO"
 var intro_time := 0.0
 var event_name := "POWERBALL"
@@ -160,10 +162,29 @@ func _controller_changed(_device: int, _connected: bool) -> void:
 	gamepad_name = Input.get_joy_name(pads[0]) if not pads.is_empty() else "KEYBOARD"
 	queue_redraw()
 
+func _update_hosts() -> void:
+	host_primary = "MIKE ADAMLE"
+	if era_index == 0:
+		host_secondary = "JOE THEISMANN"
+	elif era_index == 1:
+		host_secondary = "TODD CHRISTENSEN"
+	elif era_index >= 2 and era_index <= 4:
+		host_secondary = "LARRY CSONKA"
+	elif era_index == 5:
+		host_secondary = "LARRY CSONKA / LISA MALOSKY"
+	elif era_index >= 6 and era_index <= 9:
+		host_secondary = "LISA MALOSKY"
+	elif era_index == 10 or era_index == 11:
+		host_secondary = "DAN NITRO CLARK"
+	else:
+		host_primary = "2026 HOST"
+		host_secondary = "2026 CO-HOST"
+
 func _refresh_schedule() -> void:
+	_update_hosts()
 	if mode == "ERAS" and era_index == 0:
 		upcoming_events = ["POWERBALL S1A", "ASSAULT S1A", "JOUST S1A", "HUMAN CANNONBALL S1A", "BREAKTHROUGH AND CONQUER S1A", "ELIMINATOR S1A"]
-	elif mode == "MODERN" or era_index == 5:
+	elif mode == "MODERN" or era_index == 12:
 		upcoming_events = ["POWERBALL 2026", "JOUST 2026", "ELIMINATOR 2026"]
 	else:
 		upcoming_events = ["POWERBALL", "ATLASPHERE", "JOUST", "RETRO ELIMINATOR"]
@@ -300,6 +321,7 @@ func _draw() -> void:
 			_draw_text(cast_names[i], Vector2(x, y + 68), 15, GOLD)
 		_draw_text("PRESS ANY KEY TO SKIP", Vector2(330, 480), 18)
 	elif screen == "MENU":
+		_draw_text("HOSTS: " + host_primary + " / " + host_secondary, Vector2(70, 110), 16, GOLD)
 		_draw_text("1  ERAS MODE (1989-2026)", Vector2(70, 166), 27)
 		_draw_text("2  MODERN SEASON (2026)", Vector2(70, 224), 27)
 		_draw_text("3  GLADIATOR MODE " + ("UNLOCKED" if unlock_gladiator else "[LOCKED]"), Vector2(70, 282), 25, GREEN if unlock_gladiator else RED)
@@ -315,6 +337,7 @@ func _draw() -> void:
 		draw_rect(Rect2(contender - Vector2(12, 20), Vector2(24, 40)), GREEN)
 		draw_rect(Rect2(gladiator - Vector2(15, 22), Vector2(30, 44)), RED)
 		_draw_text(mode + "  -  " + event_name, Vector2(63, 126), 23, GOLD)
+		_draw_text(host_primary + " / " + host_secondary, Vector2(64, 145), 13, LIGHT)
 		_draw_text("POINTS " + str(score), Vector2(690, 126), 21)
 		draw_rect(Rect2(766, 88, 137, 49), Color("#080b16"))
 		draw_rect(Rect2(766, 88, 137, 49), GOLD, false, 3)
