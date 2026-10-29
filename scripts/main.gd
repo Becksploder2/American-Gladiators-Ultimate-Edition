@@ -351,7 +351,15 @@ func _draw_pixel_avatar(pos: Vector2, name: String, index: int) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: Key = event.keycode
-		if key == KEY_F5:
+		if key == KEY_F6 and prototype_all_unlocked and screen == "PLAY":
+			screen = "RESULT"
+			message = "PROTOTYPE: EVENT SKIPPED"
+			_next_event()
+			return
+		elif key == KEY_F7 and prototype_all_unlocked and screen == "PLAY":
+			_start_event()
+			return
+		elif key == KEY_F5:
 			theme_slot = _current_theme_slot()
 			theme_picker.popup_centered_ratio(0.75)
 		elif screen == "INTRO":
@@ -790,7 +798,7 @@ func _process(delta: float) -> void:
 			elif conquer_clock <= 0.0:
 				message = "CONQUER TIME EXPIRED!"
 				screen = "RESULT"
-	elif event_name == "JOUST" and mode == "ERAS":
+	elif event_name.contains("JOUST"):
 		if joust_finished:
 			joust_fall_timer += delta
 			if joust_fall_timer >= 1.25:
@@ -948,7 +956,7 @@ func _process(delta: float) -> void:
 			message = "ELIMINATOR FINISHED!"
 	else:
 		gladiator = gladiator.move_toward(contender, delta * ai_speed)
-	if (time_left <= 0 and not (event_name == "JOUST" and mode == "ERAS")) or (event_name == "HUMAN CANNONBALL" and cannon_resolved and cannon_attempts >= 3):
+	if (time_left <= 0 and not event_name.contains("JOUST")) or (event_name == "HUMAN CANNONBALL" and cannon_resolved and cannon_attempts >= 3):
 		screen = "RESULT"
 		time_left = 0.0
 		_play_tone(950.0, 0.7)
@@ -1197,12 +1205,12 @@ func _draw() -> void:
 				_draw_text("TIME: " + str(ceili(conquer_clock)), Vector2(410, 202), 20, GOLD)
 		elif event_name == "JOUST" and mode == "ERAS":
 			# S1A drawbridge; S1B onward elevated pedestals over crash mats.
-			if era_index == 0:
+			if era_index == 0 and mode == "ERAS":
 				draw_rect(Rect2(185, 349, 590, 22), Color("#9d754c"))
 			else:
-				draw_rect(Rect2(170, 398, 625, 24), BLUE)
-				draw_rect(Rect2(250, 349, 120, 14), GOLD)
-				draw_rect(Rect2(585, 349, 120, 14), GOLD)
+				draw_rect(Rect2(170, 398, 625, 24), Color("#222b37") if mode == "MODERN" else BLUE)
+				draw_rect(Rect2(250, 349, 120, 14), Color("#62d8e8") if mode == "MODERN" else GOLD)
+				draw_rect(Rect2(585, 349, 120, 14), Color("#62d8e8") if mode == "MODERN" else GOLD)
 				_draw_text("CRASH MATS", Vector2(405, 415), 17, LIGHT)
 			for i in range(14 if era_index == 0 else 0):
 				draw_line(Vector2(198 + i * 40, 349), Vector2(198 + i * 40, 370), INK, 2.0)
