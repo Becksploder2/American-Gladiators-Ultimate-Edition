@@ -511,7 +511,10 @@ func _start_event() -> void:
 	assault_timer = 1.0
 	assault_jump_time = 0.0
 	assault_roll_time = 0.0
-	powerball_defenders = [Vector2(310, 295), Vector2(540, 295), Vector2(760, 295)]
+	powerball_defenders = [Vector2(325, 245), Vector2(480, 315), Vector2(640, 245)]
+	ai_contender = Vector2(815, 395)
+	ai_holding = true
+	ai_recovery = 0.0
 	ball = Vector2(380, 295)
 	holding_ball = false
 	message = "CONTENDER READY!  GLADIATOR READY!"
@@ -612,8 +615,8 @@ func _process(delta: float) -> void:
 			ai_recovery = 0.8
 			ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
 		for i in range(powerball_defenders.size()):
-			var target := ai_contender if i == 2 else contender
-			powerball_defenders[i] = powerball_defenders[i].move_toward(target, delta * ai_speed)
+			var target := ai_contender if i == 2 else (ai_contender if i == 1 and ai_holding and not holding_ball else contender)
+			powerball_defenders[i] = powerball_defenders[i].move_toward(target, delta * ai_speed * 0.72)
 		if not powerball_out and Input.is_action_just_pressed("secondary_action") and contender.distance_to(holder) < 45 and not holding_ball:
 			holding_ball = true
 			message = "BALL TAKEN - HOLDER REFILLED"
@@ -1061,8 +1064,13 @@ func _draw() -> void:
 					draw_circle(holder, 9, GOLD)
 			_draw_contender_uniform(ai_contender, true)
 			_draw_contender_uniform(contender, false)
-			for defender in powerball_defenders:
+			for i in range(powerball_defenders.size()):
+				var defender := powerball_defenders[i]
+				draw_circle(defender + Vector2(0, 38), 23.0, Color("#172036"))
+				draw_circle(defender + Vector2(0, 38), 23.0, GOLD, false, 2.0)
 				_draw_character(defender, true)
+				_draw_text("G" + str(i + 1), defender + Vector2(-12, -49), 16, GOLD)
+			_draw_text("CPU CONTENDER", ai_contender + Vector2(-52, -54), 13, LIGHT)
 		elif event_name == "BREAKTHROUGH AND CONQUER":
 			if breakthrough_phase == 0:
 				draw_rect(Rect2(95, 210, 780, 225), Color("#286b42"))
