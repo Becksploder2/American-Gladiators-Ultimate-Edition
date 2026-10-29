@@ -74,7 +74,7 @@ func _refresh_schedule() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		var key := event.keycode
+		var key: Key = event.keycode
 		if screen == "MENU":
 			if key == KEY_1:
 				_start_season("RETRO")
