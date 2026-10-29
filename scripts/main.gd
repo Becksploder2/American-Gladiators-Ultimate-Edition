@@ -94,6 +94,7 @@ var hud_font: Font = ThemeDB.fallback_font
 var sound_player: AudioStreamPlayer
 var whistle_played := false
 var theme_player: AudioStreamPlayer
+var theme_slot := "early"
 var theme_picker: FileDialog
 var classic_logo: Texture2D = preload("res://assets/logos/classic.svg")
 var modern_logo: Texture2D = preload("res://assets/logos/prime_2026.svg")
@@ -106,7 +107,7 @@ func _ready() -> void:
 	_load_progress()
 	var music_cfg := ConfigFile.new()
 	if music_cfg.load("user://music.cfg") == OK:
-		var saved_path: String = music_cfg.get_value("music", "theme", "")
+		var saved_path: String = music_cfg.get_value("music", "early", music_cfg.get_value("music", "theme", ""))
 		if FileAccess.file_exists(saved_path):
 			_theme_selected(saved_path)
 	Input.joy_connection_changed.connect(_controller_changed)
@@ -208,6 +209,26 @@ func _load_pcm_wav(path: String) -> AudioStreamWAV:
 	wav.data = audio_bytes
 	return wav
 
+func _current_theme_slot() -> String:
+	if mode == "MODERN" or era_index == 12:
+		return "modern"
+	return "rock" if era_index >= 8 else "early"
+
+func _play_era_theme() -> void:
+	theme_slot = _current_theme_slot()
+	var cfg := ConfigFile.new()
+	if cfg.load("user://music.cfg") != OK:
+		return
+	var path: String = cfg.get_value("music", theme_slot, "")
+	if theme_slot == "early" and path.is_empty():
+		path = cfg.get_value("music", "theme", "")
+	if path.is_empty() or not FileAccess.file_exists(path):
+		return
+	var stream := _load_pcm_wav(path)
+	if stream != null:
+		theme_player.stream = stream
+		theme_player.play()
+
 func _theme_selected(path: String) -> void:
 	var stream: AudioStreamWAV = _load_pcm_wav(path)
 	if stream == null:
@@ -217,7 +238,7 @@ func _theme_selected(path: String) -> void:
 	theme_player.stream = stream
 	theme_player.play()
 	var cfg := ConfigFile.new()
-	cfg.set_value("music", "theme", path)
+	cfg.set_value("music", theme_slot, path)
 	cfg.save("user://music.cfg")
 	queue_redraw()
 
@@ -312,6 +333,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: Key = event.keycode
 		if key == KEY_F5:
+			theme_slot = _current_theme_slot()
 			theme_picker.popup_centered_ratio(0.75)
 		elif screen == "INTRO":
 			screen = "MENU"
@@ -382,6 +404,7 @@ func _start_season(chosen_mode: String) -> void:
 	score = 0
 	_refresh_schedule()
 	_start_event()
+	_play_era_theme()
 
 func _start_event() -> void:
 	if theme_player.playing:
