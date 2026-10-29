@@ -31,6 +31,14 @@ var ai_recovery := 0.0
 var ai_goal_index := 0
 var powerball_out := false
 var powerball_reset_time := 0.0
+var cannon_phase := 0.0
+var cannon_velocity := 0.0
+var cannon_launched := false
+var cannon_resolved := false
+var cannon_guard := 0.0
+var cannon_attempts := 0
+var cannon_pivot := Vector2(475, 145)
+var cannon_length := 250.0
 var assault_station := 0
 var assault_fired: Array[bool] = [false, false, false, false, false]
 var assault_projectile := Vector2(-100, -100)
@@ -366,6 +374,12 @@ func _start_event() -> void:
 	powerball_out = false
 	powerball_reset_time = 0.0
 	ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
+	cannon_phase = -1.0
+	cannon_velocity = 0.0
+	cannon_launched = false
+	cannon_resolved = false
+	cannon_guard = 0.0
+	cannon_attempts = 0
 	assault_station = 0
 	assault_fired = [false, false, false, false, false]
 	assault_projectile = Vector2(-100, -100)
@@ -442,9 +456,10 @@ func _process(delta: float) -> void:
 		return
 	time_left -= delta
 	var movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	contender += movement * move_speed * (1.4 if Input.is_action_pressed("dash") else 1.0) * delta
-	contender.x = clampf(contender.x, 60, WIDTH - 60)
-	contender.y = clampf(contender.y, 180, HEIGHT - 75)
+	if event_name != "HUMAN CANNONBALL":
+		contender += movement * move_speed * (1.4 if Input.is_action_pressed("dash") else 1.0) * delta
+		contender.x = clampf(contender.x, 60, WIDTH - 60)
+		contender.y = clampf(contender.y, 180, HEIGHT - 75)
 	if event_name.contains("POWERBALL"):
 		powerball_reset_time = maxf(0.0, powerball_reset_time - delta)
 		if powerball_out and powerball_reset_time <= 0.0:
@@ -494,6 +509,35 @@ func _process(delta: float) -> void:
 			if ai_holding and ai_contender.distance_to(defender) < 30:
 				ai_holding = false
 				ai_recovery = 0.8
+	elif event_name == "HUMAN CANNONBALL":
+		# Side-view pendulum: release from the left, strike the pad-bearing Gladiator on the right.
+		if not cannon_launched and Input.is_action_just_pressed("primary_action"):
+			cannon_launched = true
+			cannon_velocity = 1.95
+			message = "SWING! TIME YOUR IMPACT!"
+		if cannon_launched and not cannon_resolved:
+			cannon_velocity += (-4.7 * sin(cannon_phase) - 0.18 * cannon_velocity) * delta
+			cannon_phase += cannon_velocity * delta
+			cannon_guard = clampf(cannon_guard + (0.9 if cannon_phase > 0.25 else -0.5) * delta, 0.0, 1.0)
+			var swing_pos := cannon_pivot + Vector2(sin(cannon_phase), cos(cannon_phase)) * cannon_length
+			if swing_pos.x > 615.0 and cannon_velocity > 0.0:
+				cannon_resolved = true
+				if cannon_velocity > 1.2 and cannon_guard < 0.72:
+					score += 10
+					message = "GLADIATOR KNOCKED OFF! +10"
+					gladiator = Vector2(760, 450)
+				else:
+					message = "BLOCKED BY GLADIATOR!"
+					_play_tone(740.0 if gladiator.y > 400.0 else 210.0, 0.3)
+		if cannon_resolved and Input.is_action_just_pressed("secondary_action"):
+			cannon_phase = -1.0
+			cannon_velocity = 0.0
+			cannon_launched = false
+			cannon_resolved = false
+			cannon_guard = 0.0
+			gladiator = Vector2(680, 295)
+			cannon_attempts += 1
+			message = "READY FOR NEXT SWING - Z TO LAUNCH"
 	elif event_name == "ASSAULT":
 		var stations := _assault_stations()
 		if Input.is_action_just_pressed("pickup_weapon") and contender.distance_to(stations[assault_station]) < 50:
@@ -708,6 +752,19 @@ func _draw() -> void:
 			_draw_contender_uniform(contender, false)
 			for defender in powerball_defenders:
 				_draw_character(defender, true)
+		elif event_name == "HUMAN CANNONBALL":
+			# Side-on staging with a raised takeoff, swinging rope, and padded Gladiator platform.
+			draw_rect(Rect2(95, 365, 170, 25), GOLD)
+			draw_rect(Rect2(610, 360, 160, 24), GOLD)
+			draw_rect(Rect2(670, 384, 22, 75), Color("#a5aab6"))
+			draw_line(Vector2(325, 142), Vector2(625, 142), Color("#d6d9e5"), 7.0)
+			draw_circle(cannon_pivot, 10, GOLD)
+			var swing_pos := cannon_pivot + Vector2(sin(cannon_phase), cos(cannon_phase)) * cannon_length
+			draw_line(cannon_pivot, swing_pos, Color("#e5e3d7"), 4.0)
+			_draw_contender_uniform(swing_pos, false)
+			_draw_character(gladiator, true)
+			draw_rect(Rect2(gladiator + Vector2(-32, -18), Vector2(12, 55)), BLUE)
+			_draw_text("Z: LAUNCH   X: RESET AFTER IMPACT", Vector2(270, 425), 18, GOLD)
 		elif event_name == "ASSAULT":
 			for i in range(5):
 				var station := _assault_stations()[i]
