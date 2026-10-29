@@ -31,6 +31,12 @@ var ai_recovery := 0.0
 var ai_goal_index := 0
 var powerball_out := false
 var powerball_reset_time := 0.0
+var breakthrough_phase := 0
+var breakthrough_won := false
+var conquer_won := false
+var conquer_push := 0.0
+var conquer_clock := 10.0
+var breakthrough_guard_cooldown := 0.0
 var joust_survival := 0.0
 var joust_finished := false
 var joust_attack_cooldown := 0.0
@@ -377,6 +383,15 @@ func _start_event() -> void:
 	powerball_out = false
 	powerball_reset_time = 0.0
 	ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
+	breakthrough_phase = 0
+	breakthrough_won = false
+	conquer_won = false
+	conquer_push = 0.0
+	conquer_clock = 10.0
+	breakthrough_guard_cooldown = 0.0
+	if event_name == "BREAKTHROUGH AND CONQUER":
+		contender = Vector2(145, 320)
+		gladiator = Vector2(485, 320)
 	joust_survival = 0.0
 	joust_finished = false
 	joust_attack_cooldown = 0.0
@@ -463,10 +478,10 @@ func _process(delta: float) -> void:
 			message = "WHISTLE! GO!"
 		queue_redraw()
 		return
-	if event_name != "HUMAN CANNONBALL":
+	if event_name != "HUMAN CANNONBALL" and event_name != "BREAKTHROUGH AND CONQUER":
 		time_left -= delta
 	var movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	if event_name != "HUMAN CANNONBALL" and not (event_name == "JOUST" and era_index == 0 and mode == "ERAS"):
+	if event_name != "HUMAN CANNONBALL" and event_name != "BREAKTHROUGH AND CONQUER" and not (event_name == "JOUST" and era_index == 0 and mode == "ERAS"):
 		contender += movement * move_speed * (1.4 if Input.is_action_pressed("dash") else 1.0) * delta
 		contender.x = clampf(contender.x, 60, WIDTH - 60)
 		contender.y = clampf(contender.y, 180, HEIGHT - 75)
@@ -519,6 +534,51 @@ func _process(delta: float) -> void:
 			if ai_holding and ai_contender.distance_to(defender) < 30:
 				ai_holding = false
 				ai_recovery = 0.8
+	elif event_name == "BREAKTHROUGH AND CONQUER":
+		if breakthrough_phase == 0:
+			# Breakthrough: get past the defender and enter the marked end zone.
+			contender += movement * 205.0 * delta
+			contender.x = clampf(contender.x, 100.0, 865.0)
+			contender.y = clampf(contender.y, 225.0, 400.0)
+			gladiator = gladiator.move_toward(Vector2(contender.x + 48.0, contender.y), 115.0 * delta)
+			breakthrough_guard_cooldown = maxf(0.0, breakthrough_guard_cooldown - delta)
+			if contender.distance_to(gladiator) < 43.0 and breakthrough_guard_cooldown <= 0.0:
+				contender.x = maxf(105.0, contender.x - 100.0)
+				breakthrough_guard_cooldown = 1.0
+				message = "TACKLED! KEEP DRIVING FOR THE END ZONE!"
+			if contender.x >= 825.0:
+				breakthrough_won = true
+				score += 40 if era_index == 0 else 5
+				breakthrough_phase = 1
+				contender = Vector2(375, 320)
+				gladiator = Vector2(480, 320)
+				conquer_clock = 10.0
+				message = "BREAKTHROUGH! NOW CONQUER: 10 SECONDS!"
+		else:
+			conquer_clock = maxf(0.0, conquer_clock - delta)
+			contender += movement * 145.0 * delta
+			contender.x = clampf(contender.x, 280.0, 680.0)
+			contender.y = clampf(contender.y, 210.0, 425.0)
+			if contender.distance_to(gladiator) < 90.0 and Input.is_action_pressed("primary_action"):
+				var push_dir := (gladiator - Vector2(480, 320)).normalized()
+				if push_dir.length() < 0.1:
+					push_dir = Vector2(1, 0)
+				gladiator += push_dir * 95.0 * delta
+				conquer_push += delta
+				message = "PUSH THE GLADIATOR OUT OF THE CIRCLE!"
+			else:
+				gladiator = gladiator.move_toward(Vector2(480, 320), 22.0 * delta)
+			# A body part crossing the 105px circle boundary wins Conquer.
+			if gladiator.distance_to(Vector2(480, 320)) + 20.0 >= 105.0:
+				conquer_won = true
+				score += 40 if era_index == 0 else 5
+				if era_index == 0 and breakthrough_won:
+					score += 20
+				message = "CONQUER WON! BOTH EVENTS COMPLETE!"
+				screen = "RESULT"
+			elif conquer_clock <= 0.0:
+				message = "CONQUER TIME EXPIRED!"
+				screen = "RESULT"
 	elif event_name == "JOUST" and era_index == 0 and mode == "ERAS":
 		joust_survival += delta
 		joust_attack_cooldown = maxf(0.0, joust_attack_cooldown - delta)
@@ -795,6 +855,23 @@ func _draw() -> void:
 			_draw_contender_uniform(contender, false)
 			for defender in powerball_defenders:
 				_draw_character(defender, true)
+		elif event_name == "BREAKTHROUGH AND CONQUER":
+			if breakthrough_phase == 0:
+				draw_rect(Rect2(95, 210, 780, 225), Color("#286b42"))
+				for stripe in range(1, 8):
+					draw_line(Vector2(95 + stripe * 95, 210), Vector2(95 + stripe * 95, 435), LIGHT, 2.0)
+				draw_rect(Rect2(825, 210, 50, 225), GOLD)
+				_draw_text("END ZONE", Vector2(746, 200), 17, GOLD)
+				_draw_character(contender, false)
+				_draw_character(gladiator, true)
+				_draw_text("BREAKTHROUGH: REACH THE END ZONE", Vector2(255, 456), 18, GOLD)
+			else:
+				draw_circle(Vector2(480, 320), 105.0, LIGHT)
+				draw_circle(Vector2(480, 320), 101.0, Color("#2b6c95"))
+				_draw_character(contender, false)
+				_draw_character(gladiator, true)
+				_draw_text("CONQUER: HOLD Z NEAR GLADIATOR TO PUSH OUT", Vector2(210, 455), 18, GOLD)
+				_draw_text("TIME: " + str(ceili(conquer_clock)), Vector2(410, 202), 20, GOLD)
 		elif event_name == "JOUST" and era_index == 0 and mode == "ERAS":
 			# Season 1A drawbridge with hinged trapdoors at both ends.
 			draw_rect(Rect2(185, 349, 590, 22), Color("#9d754c"))
