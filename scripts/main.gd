@@ -191,12 +191,24 @@ func _update_hosts() -> void:
 
 func _refresh_schedule() -> void:
 	_update_hosts()
-	if mode == "ERAS" and era_index == 0:
-		upcoming_events = ["POWERBALL S1A", "ASSAULT S1A", "JOUST S1A", "HUMAN CANNONBALL S1A", "BREAKTHROUGH AND CONQUER S1A", "ELIMINATOR S1A"]
-	elif mode == "MODERN" or era_index == 12:
+	if mode == "MODERN" or era_index == 12:
 		upcoming_events = ["POWERBALL 2026", "JOUST 2026", "ELIMINATOR 2026"]
-	else:
-		upcoming_events = ["POWERBALL", "ATLASPHERE", "JOUST", "RETRO ELIMINATOR"]
+		return
+	# Classic US event introduction timeline. Event implementations remain prototypes.
+	var events: Array[String] = ["POWERBALL", "ASSAULT", "JOUST", "HUMAN CANNONBALL", "BREAKTHROUGH AND CONQUER"]
+	if era_index >= 1:
+		events.append("THE WALL")
+	if era_index >= 2:
+		events.append_array(["HANG TOUGH", "ATLASPHERE"])
+	if era_index >= 4:
+		events.append_array(["THE MAZE", "SWINGSHOT"])
+	if era_index >= 6:
+		events.erase("HUMAN CANNONBALL")
+		events.append("SKYTRACK")
+	if era_index >= 8:
+		events.append_array(["TUG O WAR", "WHIPLASH", "SNAPBACK", "PYRAMID"])
+	events.append("ELIMINATOR")
+	upcoming_events = events
 
 func _load_roster_gallery() -> void:
 	roster_names.clear()
