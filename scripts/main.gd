@@ -11,8 +11,11 @@ const GOLD := Color("#f5cf6b")
 const LIGHT := Color("#f1f3ff")
 const GREEN := Color("#2caa81")
 
-var mode := "RETRO"
-var screen := "MENU"
+var mode := "ERAS"
+var era_index := 0
+var era_labels := ["S1A 1989", "S1B 1990", "1990-92", "1992-94", "1994-96", "2026"]
+var screen := "INTRO"
+var intro_time := 0.0
 var event_name := "POWERBALL"
 var contender := Vector2(150, 295)
 var gladiator := Vector2(680, 295)
@@ -158,16 +161,21 @@ func _controller_changed(_device: int, _connected: bool) -> void:
 	queue_redraw()
 
 func _refresh_schedule() -> void:
-	upcoming_events = ["POWERBALL", "ATLASPHERE", "JOUST", "RETRO ELIMINATOR" if mode == "RETRO" else "ELIMINATOR '26"]
+	upcoming_events = ["POWERBALL", "ATLASPHERE", "JOUST", "RETRO ELIMINATOR" if mode == "ERAS" else "ELIMINATOR '26"]
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: Key = event.keycode
 		if key == KEY_F5:
 			theme_picker.popup_centered_ratio(0.75)
+		elif screen == "INTRO":
+			screen = "MENU"
 		elif screen == "MENU":
-			if key == KEY_1:
-				_start_season("RETRO")
+			if key == KEY_E:
+				era_index = (era_index + 1) % era_labels.size()
+				_refresh_schedule()
+			elif key == KEY_1:
+				_start_season("ERAS")
 			elif key == KEY_2:
 				_start_season("MODERN")
 			elif key == KEY_3 and unlock_gladiator:
@@ -209,6 +217,12 @@ func _start_event() -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if screen == "INTRO":
+		intro_time += delta
+		if intro_time > 12.0:
+			screen = "MENU"
+		queue_redraw()
+		return
 	if screen != "PLAY":
 		return
 	if whistle_countdown > 0:
@@ -225,7 +239,7 @@ func _process(delta: float) -> void:
 	contender.x = clampf(contender.x, 60, WIDTH - 60)
 	contender.y = clampf(contender.y, 180, HEIGHT - 75)
 	gladiator = gladiator.move_toward(contender, delta * ai_speed)
-	if event_name == "POWERBALL":
+	if event_name.begins_with("POWERBALL"):
 		if Input.is_action_just_pressed("primary_action") and contender.distance_to(ball) < 46 and not holding_ball:
 			holding_ball = true
 		if holding_ball:
@@ -269,13 +283,22 @@ func _draw() -> void:
 	_draw_text("AMERICAN GLADIATORS", Vector2(32, 47), 34, GOLD)
 	_draw_text("ULTIMATE EDITION  |  16-BIT PROTOTYPE", Vector2(34, 78), 16)
 	_draw_text("INPUT: " + gamepad_name, Vector2(32, 517), 13, GOLD)
-	if screen == "MENU":
-		_draw_text("1  RETRO SEASON (1989-1996)", Vector2(70, 166), 27)
+	if screen == "INTRO":
+		_draw_text("AMERICAN GLADIATORS", Vector2(210, 155), 40, GOLD)
+		var cast_names := ["GEMINI", "NITRO", "ZAP", "LACE", "LASER", "ICE", "TURBO", "2026 CAST"]
+		for i in range(cast_names.size()):
+			var x := 95 + (i % 4) * 210
+			var y := 220 + int(i / 4) * 100
+			draw_rect(Rect2(x + 35, y, 30, 45), RED if i % 2 == 0 else BLUE)
+			_draw_text(cast_names[i], Vector2(x, y + 68), 15, GOLD)
+		_draw_text("PRESS ANY KEY TO SKIP", Vector2(330, 480), 18)
+	elif screen == "MENU":
+		_draw_text("1  ERAS MODE (1989-2026)", Vector2(70, 166), 27)
 		_draw_text("2  MODERN SEASON (2026)", Vector2(70, 224), 27)
 		_draw_text("3  GLADIATOR MODE " + ("UNLOCKED" if unlock_gladiator else "[LOCKED]"), Vector2(70, 282), 25, GREEN if unlock_gladiator else RED)
 		_draw_text("4  CREATE A CONTENDER (PLANNED)", Vector2(70, 340), 23)
 		_draw_text("F5: IMPORT ORIGINAL TV THEME (WAV)", Vector2(70, 390), 18, GOLD)
-		_draw_text("Controller: A = Retro  |  Y = Modern", Vector2(70, 421), 18, GOLD)
+		_draw_text("E: SELECT ERA - " + era_labels[era_index] + "", Vector2(70, 421), 18, GOLD)
 		_draw_text("Gladiator Mode and Creator unlock after a season victory.", Vector2(70, 455), 15)
 	elif screen == "PLAY":
 		draw_rect(Rect2(50, 151, 860, 307), BLUE)
