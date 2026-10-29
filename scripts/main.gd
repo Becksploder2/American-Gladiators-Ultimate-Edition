@@ -454,7 +454,8 @@ func _process(delta: float) -> void:
 			message = "WHISTLE! GO!"
 		queue_redraw()
 		return
-	time_left -= delta
+	if event_name != "HUMAN CANNONBALL":
+		time_left -= delta
 	var movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if event_name != "HUMAN CANNONBALL":
 		contender += movement * move_speed * (1.4 if Input.is_action_pressed("dash") else 1.0) * delta
@@ -522,21 +523,22 @@ func _process(delta: float) -> void:
 			var swing_pos := cannon_pivot + Vector2(sin(cannon_phase), cos(cannon_phase)) * cannon_length
 			if swing_pos.x > 615.0 and cannon_velocity > 0.0:
 				cannon_resolved = true
+				cannon_attempts += 1
 				if cannon_velocity > 1.2 and cannon_guard < 0.72:
-					score += 10
-					message = "GLADIATOR KNOCKED OFF! +10"
+					var earned := 40 if cannon_attempts == 3 else 30
+					score += earned
+					message = "GLADIATOR KNOCKED OFF! +" + str(earned)
 					gladiator = Vector2(760, 450)
 				else:
 					message = "BLOCKED BY GLADIATOR!"
 					_play_tone(740.0 if gladiator.y > 400.0 else 210.0, 0.3)
-		if cannon_resolved and Input.is_action_just_pressed("secondary_action"):
+		if cannon_resolved and Input.is_action_just_pressed("secondary_action") and cannon_attempts < 3:
 			cannon_phase = -1.0
 			cannon_velocity = 0.0
 			cannon_launched = false
 			cannon_resolved = false
 			cannon_guard = 0.0
 			gladiator = Vector2(680, 295)
-			cannon_attempts += 1
 			message = "READY FOR NEXT SWING - Z TO LAUNCH"
 	elif event_name == "ASSAULT":
 		var stations := _assault_stations()
@@ -561,7 +563,7 @@ func _process(delta: float) -> void:
 			message = "DIRECT HIT - ROUND OVER"
 	else:
 		gladiator = gladiator.move_toward(contender, delta * ai_speed)
-	if time_left <= 0:
+	if time_left <= 0 or (event_name == "HUMAN CANNONBALL" and cannon_resolved and cannon_attempts >= 3):
 		screen = "RESULT"
 		time_left = 0.0
 		_play_tone(950.0, 0.7)
@@ -764,7 +766,7 @@ func _draw() -> void:
 			_draw_contender_uniform(swing_pos, false)
 			_draw_character(gladiator, true)
 			draw_rect(Rect2(gladiator + Vector2(-32, -18), Vector2(12, 55)), BLUE)
-			_draw_text("Z: LAUNCH   X: RESET AFTER IMPACT", Vector2(270, 425), 18, GOLD)
+			_draw_text("SWING " + str(mini(cannon_attempts + (0 if cannon_launched else 1), 3)) + "/3   Z: LAUNCH   X: NEXT SWING", Vector2(240, 425), 18, GOLD)
 		elif event_name == "ASSAULT":
 			for i in range(5):
 				var station := _assault_stations()[i]
