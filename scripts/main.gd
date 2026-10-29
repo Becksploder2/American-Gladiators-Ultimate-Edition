@@ -34,6 +34,10 @@ var powerball_reset_time := 0.0
 var breakthrough_juke_time := 0.0
 var breakthrough_juke_cooldown := 0.0
 var breakthrough_tackle_time := 0.0
+var conquer_tug_meter := 0.0
+var conquer_tug_active := false
+var conquer_tug_defense := 0.0
+var conquer_tug_flash := 0.0
 var conquer_grab_limb := -1
 var conquer_grab_cooldown := 0.0
 var breakthrough_phase := 0
@@ -402,6 +406,10 @@ func _start_event() -> void:
 	breakthrough_juke_cooldown = 0.0
 	breakthrough_tackle_time = 0.0
 	conquer_grab_limb = -1
+	conquer_tug_meter = 0.0
+	conquer_tug_active = false
+	conquer_tug_defense = 0.0
+	conquer_tug_flash = 0.0
 	conquer_grab_cooldown = 0.0
 	breakthrough_won = false
 	conquer_won = false
@@ -608,19 +616,48 @@ func _process(delta: float) -> void:
 				limb = 2
 			elif Input.is_action_pressed("fourth_face"):
 				limb = 3
-			conquer_grab_limb = limb if contender.distance_to(gladiator) < 100.0 else -1
-			if conquer_grab_limb >= 0 and conquer_grab_cooldown <= 0.0:
-				var limb_names := ["LEFT LEG", "RIGHT LEG", "LEFT ARM", "RIGHT ARM"]
-				var limb_offsets := [Vector2(-14, 28), Vector2(14, 28), Vector2(-26, -10), Vector2(26, -10)]
-				var grab_point: Vector2 = gladiator + limb_offsets[conquer_grab_limb]
-				var pull_dir := (contender - grab_point).normalized()
-				if pull_dir.length() < 0.1:
-					pull_dir = Vector2(1, 0)
-				gladiator += pull_dir * 115.0 * delta
-				conquer_push += delta
-				message = "GRABBING " + limb_names[conquer_grab_limb] + " - PULL OUT!"
+			# Retro wrestling-game tug-of-war: tap the selected limb button repeatedly.
+			# Gladiator actively resists; holding a button does not generate repeated pulls.
+			conquer_tug_flash = maxf(0.0, conquer_tug_flash - delta)
+			var within_reach := contender.distance_to(gladiator) < 100.0
+			if limb >= 0 and within_reach and conquer_grab_cooldown <= 0.0:
+				conquer_tug_active = true
+				conquer_grab_limb = limb
+			elif not within_reach:
+				conquer_tug_active = false
+				conquer_grab_limb = -1
+				conquer_tug_meter = move_toward(conquer_tug_meter, 0.0, 25.0 * delta)
+			var pressed_limb := (Input.is_action_just_pressed("primary_action") or Input.is_action_just_pressed("secondary_action") or Input.is_action_just_pressed("pickup_weapon") or Input.is_action_just_pressed("fourth_face"))
+			if conquer_tug_active:
+				conquer_tug_defense += delta
+				# Defense pushes the meter back and can break a weak grip.
+				conquer_tug_meter = maxf(0.0, conquer_tug_meter - (20.0 + 8.0 * sin(conquer_tug_defense * 7.0)) * delta)
+				if pressed_limb:
+					conquer_tug_meter = minf(100.0, conquer_tug_meter + 19.0)
+					conquer_tug_flash = 0.16
+					message = "GRAPPLE! TAP FACE BUTTONS TO BEAT GLADIATOR RESISTANCE!"
+				if conquer_tug_meter >= 68.0:
+					var limb_offsets := [Vector2(-14, 28), Vector2(14, 28), Vector2(-26, -10), Vector2(26, -10)]
+					var grab_point: Vector2 = gladiator + limb_offsets[conquer_grab_limb]
+					var pull_dir := (contender - grab_point).normalized()
+					if pull_dir.length() < 0.1:
+						pull_dir = Vector2(1, 0)
+					gladiator += pull_dir * (115.0 + conquer_tug_meter) * delta
+					conquer_push += delta
+				elif conquer_tug_meter < 10.0 and conquer_tug_defense > 0.8:
+					conquer_tug_active = false
+					conquer_grab_limb = -1
+					conquer_tug_defense = 0.0
+					conquer_grab_cooldown = 0.45
+					message = "GLADIATOR BROKE THE HOLD!"
 			else:
-				gladiator = gladiator.move_toward(Vector2(480, 320), 22.0 * delta)
+					gladiator = gladiator.move_toward(Vector2(480, 320), 30.0 * delta)
+			else:
+				gladiator = gladiator.move_toward(Vector2(480, 320), 42.0 * delta)
+				conquer_tug_meter = move_toward(conquer_tug_meter, 0.0, 35.0 * delta)
+			if conquer_grab_cooldown > 0.0:
+				conquer_tug_active = false
+				conquer_grab_limb = -1
 			# A body part crossing the 105px circle boundary wins Conquer.
 			if gladiator.distance_to(Vector2(480, 320)) + 20.0 >= 105.0:
 				conquer_won = true
@@ -942,12 +979,19 @@ func _draw() -> void:
 			else:
 				draw_circle(Vector2(480, 320), 105.0, LIGHT)
 				draw_circle(Vector2(480, 320), 101.0, Color("#2b6c95"))
+				for ring_line in range(8):
+					var angle := float(ring_line) * TAU / 8.0
+					draw_line(Vector2(480, 320) + Vector2(cos(angle), sin(angle)) * 92.0, Vector2(480, 320) + Vector2(cos(angle), sin(angle)) * 103.0, GOLD, 2.0)
 				_draw_character(contender, false)
 				_draw_character(gladiator, true)
 				if conquer_grab_limb >= 0:
 					var limb_offsets := [Vector2(-14, 28), Vector2(14, 28), Vector2(-26, -10), Vector2(26, -10)]
 					draw_line(contender, gladiator + limb_offsets[conquer_grab_limb], GOLD, 5.0)
-				_draw_text("GRAB: A/Z LEFT LEG  B/X RIGHT LEG  X/C LEFT ARM  Y/V RIGHT ARM", Vector2(105, 455), 14, GOLD)
+				draw_rect(Rect2(300, 172, 360, 16), RED)
+				draw_rect(Rect2(300, 172, 360.0 * conquer_tug_meter / 100.0, 16), GOLD if conquer_tug_flash > 0.0 else GREEN)
+				draw_rect(Rect2(300, 172, 360, 16), LIGHT, false, 2.0)
+				_draw_text("GRAPPLE " + str(int(conquer_tug_meter)) + "% - TAP TO WIN", Vector2(334, 163), 15, GOLD)
+				_draw_text("TAP A/Z LEG-L  B/X LEG-R  X/C ARM-L  Y/V ARM-R", Vector2(165, 455), 15, GOLD)
 				_draw_text("TIME: " + str(ceili(conquer_clock)), Vector2(410, 202), 20, GOLD)
 		elif event_name == "JOUST" and mode == "ERAS":
 			# S1A drawbridge; S1B onward elevated pedestals over crash mats.
