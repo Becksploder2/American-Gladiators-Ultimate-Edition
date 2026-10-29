@@ -55,6 +55,7 @@ var assault_target_hp := 3
 var eliminator_progress := 0.0
 var eliminator_obstacle := 0
 var eliminator_stumble := 0.0
+var eliminator_climb_anim := 0.0
 var joust_fall_loser := ""
 var joust_fall_trapdoor := false
 var joust_fall_origin := Vector2.ZERO
@@ -461,7 +462,9 @@ func _event_duration(event: String) -> float:
 			return 60.0
 		"POWERBALL", "SUPER POWERBALL", "THE MAZE", "SWINGSHOT", "PYRAMID":
 			return 45.0
-		"JOUST", "TUG O WAR", "WHIPLASH":
+		"JOUST":
+			return 30.0 if era_index == 0 and mode == "ERAS" else 45.0
+		"TUG O WAR", "WHIPLASH":
 			return 30.0
 		"THE WALL":
 			return 120.0 if era_index == 1 else 60.0
@@ -543,6 +546,7 @@ func _start_event() -> void:
 	eliminator_progress = 0.0
 	eliminator_obstacle = 0
 	eliminator_stumble = 0.0
+	eliminator_climb_anim = 0.0
 	assault_target_hp = 3
 	joust_fall_loser = ""
 	joust_fall_trapdoor = false
@@ -652,7 +656,7 @@ func _process(delta: float) -> void:
 	if event_name != "HUMAN CANNONBALL" and event_name != "BREAKTHROUGH AND CONQUER":
 		time_left -= delta
 	var movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	if event_name != "HUMAN CANNONBALL" and event_name != "BREAKTHROUGH AND CONQUER" and not (event_name == "JOUST" and era_index == 0 and mode == "ERAS"):
+	if event_name != "HUMAN CANNONBALL" and event_name != "BREAKTHROUGH AND CONQUER" and not event_name.contains("JOUST"):
 		contender += movement * move_speed * (1.4 if Input.is_action_pressed("dash") else 1.0) * delta
 		contender.x = clampf(contender.x, 60, WIDTH - 60)
 		contender.y = clampf(contender.y, 180, HEIGHT - 75)
@@ -824,7 +828,18 @@ func _process(delta: float) -> void:
 		joust_cpu_attack_cooldown = maxf(0.0, joust_cpu_attack_cooldown - delta)
 		joust_hit_flash = maxf(0.0, joust_hit_flash - delta)
 		contender.x = clampf(contender.x + movement.x * 150.0 * delta, 205.0, 755.0)
+		if (mode == "MODERN" or era_index >= 1) and contender.x >= 480.0:
+			joust_finished = true
+			joust_fall_loser = "CONTENDER"
+			joust_fall_origin = contender
+			message = "CROSSED ONTO OPPONENT PLATFORM - DISQUALIFIED!"
 		gladiator.x = move_toward(gladiator.x, contender.x + 62.0, 48.0 * delta)
+		if (mode == "MODERN" or era_index >= 1) and gladiator.x < 480.0:
+			score = event_player_start + 10
+			joust_finished = true
+			joust_fall_loser = "GLADIATOR"
+			joust_fall_origin = gladiator
+			message = "GLADIATOR CROSSED PLATFORM - VICTORY!"
 		joust_action_time = maxf(0.0, joust_action_time - delta)
 		joust_jump_time = maxf(0.0, joust_jump_time - delta)
 		joust_ducking = movement.y > 0.35 and joust_jump_time <= 0.0
@@ -948,12 +963,14 @@ func _process(delta: float) -> void:
 			message = "DIRECT HIT - ROUND OVER"
 	elif event_name.contains("ELIMINATOR"):
 		eliminator_stumble = maxf(0.0, eliminator_stumble - delta)
+		eliminator_climb_anim = maxf(0.0, eliminator_climb_anim - delta)
 		if eliminator_stumble <= 0.0:
 			eliminator_progress = clampf(eliminator_progress + maxf(0.0, movement.x) * delta * 90.0 + (28.0 * delta if Input.is_action_pressed("dash") else 0.0), 0.0, 800.0)
 		var checkpoint := int(eliminator_progress / 135.0)
 		if checkpoint > eliminator_obstacle:
 			if movement.y < -0.2 or Input.is_action_pressed("primary_action"):
 				eliminator_obstacle = checkpoint
+				eliminator_climb_anim = 0.7
 				message = "OBSTACLE CLEARED! " + str(eliminator_obstacle) + "/6"
 			else:
 				eliminator_progress = float(eliminator_obstacle * 135) - 4.0
@@ -1279,7 +1296,13 @@ func _draw() -> void:
 				draw_rect(Rect2(x, 285, 35, 115), RED if i >= eliminator_obstacle else GREEN)
 				_draw_text(["WALL", "NET", "ROPE", "BEAM", "CLIMB", "FINISH"][i], Vector2(x - 8, 267), 14, GOLD)
 			draw_rect(Rect2(90, 400, 790, 12), GOLD)
-			_draw_character(Vector2(90 + eliminator_progress, 350), false)
+			var climb_phase := 1.0 - eliminator_climb_anim / 0.7
+			var climb_offset := 42.0 * sin(climb_phase * PI) if eliminator_climb_anim > 0.0 else 0.0
+			var climb_pos := Vector2(90 + eliminator_progress, 350 - climb_offset)
+			_draw_character(climb_pos, false)
+			if eliminator_climb_anim > 0.0:
+				draw_line(climb_pos + Vector2(-14, -8), climb_pos + Vector2(-28, -35 + 12 * sin(climb_phase * TAU)), GOLD, 5.0)
+				draw_line(climb_pos + Vector2(14, -8), climb_pos + Vector2(28, -35 - 12 * sin(climb_phase * TAU)), GOLD, 5.0)
 			_draw_text("PROGRESS " + str(int(eliminator_progress / 8.0)) + "%", Vector2(380, 455), 20, LIGHT)
 		elif event_name == "ASSAULT":
 			for i in range(5):
