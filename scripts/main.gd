@@ -97,6 +97,7 @@ var theme_player: AudioStreamPlayer
 var theme_slot := "early"
 var theme_picker: FileDialog
 var classic_logo: Texture2D = preload("res://assets/logos/classic.svg")
+var rock_logo: Texture2D = preload("res://assets/logos/rock_era.svg")
 var modern_logo: Texture2D = preload("res://assets/logos/prime_2026.svg")
 var roster_page := 0
 var roster_names: Array[String] = []
@@ -918,6 +919,11 @@ func _draw_era_arena() -> void:
 	else:
 		_draw_text("CLASSIC INDOOR GLADIATOR ARENA", Vector2(300, 289), 14, GOLD)
 
+func _era_logo() -> Texture2D:
+	if mode == "MODERN" or era_index == 12:
+		return modern_logo
+	return rock_logo if era_index >= 8 else classic_logo
+
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(WIDTH, HEIGHT)), INK)
 	for i in range(0, 960, 48):
@@ -926,6 +932,7 @@ func _draw() -> void:
 	_draw_text("ULTIMATE EDITION  |  16-BIT PROTOTYPE", Vector2(34, 78), 16)
 	_draw_text("INPUT: " + gamepad_name, Vector2(32, 517), 13, GOLD)
 	if screen == "INTRO":
+		draw_texture_rect(_era_logo(), Rect2(720, 82, 190, 90), false)
 		_draw_text("AMERICAN GLADIATORS", Vector2(210, 155), 40, GOLD)
 		var cast_names := ["GEMINI", "NITRO", "ZAP", "LACE", "LASER", "ICE", "TURBO", "2026 CAST"]
 		for i in range(cast_names.size()):
@@ -948,7 +955,7 @@ func _draw() -> void:
 		_draw_text("LEFT / RIGHT: PAGE     ESC: MENU     PAGE " + str(roster_page + 1), Vector2(65, 500), 16, GOLD)
 	elif screen == "MENU":
 		_draw_text("HOSTS: " + host_primary + " / " + host_secondary, Vector2(70, 110), 16, GOLD)
-		draw_texture_rect(classic_logo, Rect2(70, 145, 340, 170), false)
+		draw_texture_rect(rock_logo if era_index >= 8 and era_index < 12 else classic_logo, Rect2(70, 145, 340, 170), false)
 		_draw_text("1  ERAS MODE", Vector2(145, 327), 21, GOLD)
 		draw_texture_rect(modern_logo, Rect2(525, 145, 340, 170), false)
 		_draw_text("2  2026 TOURNAMENT MODE", Vector2(532, 327), 16, RED)
@@ -958,6 +965,7 @@ func _draw() -> void:
 		_draw_text("E: UNLOCKED ERA - " + era_labels[era_index] + "", Vector2(70, 426), 17, GOLD)
 		_draw_text("R: GLADIATOR ROSTER PREVIEW   |   Gladiator Creator locked.", Vector2(70, 458), 15)
 	elif screen == "PLAY":
+		draw_texture_rect(_era_logo(), Rect2(755, 52, 165, 75), false)
 		_draw_era_arena()
 		if event_name.contains("POWERBALL") and era_index == 0:
 			# Season 1A Powerball: green playing surface with gold semicircular boundary.
@@ -1093,6 +1101,7 @@ func _draw() -> void:
 		draw_rect(Rect2(82, 91, 796, 372), Color("#080b1b"))
 		draw_rect(Rect2(82, 91, 796, 372), GOLD, false, 5.0)
 		draw_rect(Rect2(96, 104, 768, 57), Color("#143b77"))
+		draw_texture_rect(_era_logo(), Rect2(99, 105, 150, 54), false)
 		draw_rect(Rect2(96, 104, 768, 57), LIGHT, false, 2.0)
 		_draw_text("AMERICAN GLADIATORS", Vector2(235, 141), 31, GOLD)
 		_draw_text("EVENT RESULTS", Vector2(337, 191), 25, LIGHT)
