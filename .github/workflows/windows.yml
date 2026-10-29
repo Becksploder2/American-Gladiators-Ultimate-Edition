@@ -20,8 +20,12 @@ jobs:
       - name: Export Windows EXE
         run: |
           mkdir -p dist
-          ./Godot_v4.3-stable_linux.x86_64 --headless --path . --import
+          ./Godot_v4.3-stable_linux.x86_64 --headless --path . --import 2>&1 | tee godot-import.log
+          if grep -E "SCRIPT ERROR|Parse Error|ERROR:" godot-import.log; then echo "Godot import errors detected"; exit 1; fi
+          timeout 15s ./Godot_v4.3-stable_linux.x86_64 --headless --path . --quit-after 3 2>&1 | tee godot-startup.log
+          if grep -E "SCRIPT ERROR|Parse Error|ERROR:" godot-startup.log; then echo "Godot startup errors detected"; exit 1; fi
           ./Godot_v4.3-stable_linux.x86_64 --headless --path . --export-release "Windows Desktop" dist/AmericanGladiatorsUltimateEdition.exe
+          test -s dist/AmericanGladiatorsUltimateEdition.exe
       - uses: actions/upload-artifact@v4
         with:
           name: American-Gladiators-UE-Windows
