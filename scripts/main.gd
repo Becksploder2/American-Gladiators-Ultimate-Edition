@@ -820,8 +820,11 @@ func _process(delta: float) -> void:
 			message = "WEAPON READY - A TO FIRE"
 		if Input.is_action_just_pressed("primary_action") and contender.distance_to(stations[assault_station]) < 50 and not assault_fired[assault_station]:
 			assault_fired[assault_station] = true
-			score += 1
-			message = "WEAPON FIRED! +1"
+			if era_index >= 4 and era_index < 12:
+				score += 1
+				message = "WEAPON FIRED! +1"
+			else:
+				message = "WEAPON FIRED!"
 			assault_station = mini(4, assault_station + 1)
 		assault_jump_time = maxf(0.0, assault_jump_time - delta)
 		assault_roll_time = maxf(0.0, assault_roll_time - delta)
@@ -1147,7 +1150,17 @@ func _draw() -> void:
 		elif event_name == "ASSAULT":
 			for i in range(5):
 				var station := _assault_stations()[i]
-				draw_rect(Rect2(station - Vector2(24, 12), Vector2(48, 24)), GREEN if assault_fired[i] else BLUE)
+				var cover := Rect2(station + Vector2(-35, -23), Vector2(70, 46))
+				draw_rect(cover, Color("#25385b") if assault_fired[i] else Color("#647c98"))
+				draw_rect(cover, GOLD, false, 4.0)
+				draw_rect(Rect2(station + Vector2(-28, -15), Vector2(56, 9)), Color("#d5dbe7"))
+				draw_rect(Rect2(station + Vector2(-29, 7), Vector2(58, 9)), Color("#1a233e"))
+				draw_line(station + Vector2(-10, -28), station + Vector2(28, -39), INK, 9.0)
+				draw_line(station + Vector2(-10, -28), station + Vector2(28, -39), GOLD if not assault_fired[i] else GREEN, 4.0)
+				draw_circle(station + Vector2(-10, -28), 9.0, GOLD)
+				_draw_text(str(i + 1), station + Vector2(-6, 5), 18, LIGHT)
+				if i == assault_station and not assault_fired[i]:
+					draw_rect(Rect2(station - Vector2(41, 29), Vector2(82, 64)), GOLD, false, 2.0)
 			draw_circle(Vector2(480, 185), 23, RED)
 			draw_circle(assault_projectile, 8, GOLD)
 			if assault_roll_time > 0.0:
