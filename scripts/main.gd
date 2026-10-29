@@ -129,10 +129,9 @@ func _process(delta: float) -> void:
 func _next_event() -> void:
 	event_index += 1
 	if event_index >= upcoming_events.size():
-		season_wins += 1
-		unlock_gladiator = true
-		_save_progress()
-		screen = "CHAMPION"
+		# Placeholder events do not count as a completed championship.
+		# Unlock will be enabled only after a real winning season is implemented.
+		screen = "PROTOTYPE_END"
 	else:
 		_start_event()
 	queue_redraw()
