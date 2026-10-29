@@ -376,7 +376,19 @@ func _assault_stations() -> Array[Vector2]:
 func _powerball_goals() -> Array[Vector2]:
 	if event_name.begins_with("SUPER POWERBALL"):
 		return [Vector2(220, 285), Vector2(740, 285)]
-	return [Vector2(185, 285), Vector2(480, 285), Vector2(775, 285)]
+	if era_index == 0:
+		return [Vector2(185, 285), Vector2(480, 285), Vector2(775, 285)]
+	# Five cylinders form an X, with the center scoring cylinder in the middle.
+	return [Vector2(250, 215), Vector2(710, 215), Vector2(480, 290), Vector2(250, 365), Vector2(710, 365)]
+
+func _powerball_points(goal_index: int) -> int:
+	if era_index == 0:
+		return 15
+	if event_name.begins_with("SUPER POWERBALL"):
+		return 1 # Temporary until its scoring configuration is explicitly reviewed.
+	if goal_index == 2:
+		return 2 if era_index == 1 else 3
+	return 1 if era_index <= 3 else 2
 
 func _process(delta: float) -> void:
 	if screen == "INTRO":
@@ -419,7 +431,7 @@ func _process(delta: float) -> void:
 		if not ai_holding and ai_recovery <= 0.0 and ai_contender.distance_to(cpu_holder) < 24:
 			ai_holding = true
 		if ai_holding and ai_contender.distance_to(_powerball_goals()[ai_goal_index]) < 40:
-			ai_score += 2 if ai_goal_index == 1 and _powerball_goals().size() == 3 else 1
+			ai_score += _powerball_points(ai_goal_index)
 			ai_holding = false
 			ai_recovery = 0.8
 			ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
@@ -432,7 +444,7 @@ func _process(delta: float) -> void:
 		if holding_ball:
 			for goal in _powerball_goals():
 				if contender.distance_to(goal) < 43:
-					var points := 2 if goal == Vector2(480, 285) else 1
+					var points := _powerball_points(_powerball_goals().find(goal))
 					score += points
 					holding_ball = false
 					message = "SCORE! +" + str(points)
