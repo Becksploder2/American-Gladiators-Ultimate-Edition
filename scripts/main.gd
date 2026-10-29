@@ -90,6 +90,14 @@ var unlock_gladiator := false
 var season_wins := 0
 var highest_era_unlocked := 0
 var prototype_all_unlocked := true
+var eras_completed := false
+var base_ai_speed := 125.0
+var season_difficulty_names := ["ROOKIE", "ROOKIE", "CONTENDER", "CONTENDER", "CHALLENGER", "CHALLENGER", "VETERAN", "VETERAN", "ELITE", "ELITE", "GLADIATOR", "GLADIATOR", "EXHIBITION"]
+
+func _apply_season_difficulty() -> void:
+	var tier: int = mini(era_index, 11) if mode == "ERAS" else 10
+	ai_speed = base_ai_speed * (1.0 + float(tier) * 0.055)
+
 var tournament_round := 0
 var tournament_names: Array[String] = []
 var tournament_opponents: Array[String] = []
@@ -491,6 +499,7 @@ func _start_event() -> void:
 		theme_player.stop()
 	screen = "PLAY"
 	event_name = upcoming_events[event_index]
+	_apply_season_difficulty()
 	music_director.set_era("2026" if mode == "MODERN" else era_labels[era_index])
 	referee_director.select_era("2026" if mode == "MODERN" else era_labels[era_index])
 	music_director.cue("eliminator" if event_name.contains("ELIMINATOR") else "event_" + event_name)
@@ -974,6 +983,9 @@ func _next_event() -> void:
 				screen = "CHAMPION"
 				season_wins += 1
 				if mode == "ERAS":
+					if era_index >= 11:
+						eras_completed = true
+						unlock_gladiator = true
 					highest_era_unlocked = maxi(highest_era_unlocked, mini(era_index + 1, era_labels.size() - 1))
 					era_index = highest_era_unlocked
 				_save_progress()
@@ -1138,7 +1150,7 @@ func _draw() -> void:
 		_draw_text("3  GLADIATOR MODE " + ("UNLOCKED" if unlock_gladiator else "[LOCKED]"), Vector2(70, 358), 18, GREEN if unlock_gladiator else RED)
 		_draw_text("4  CREATE A CONTENDER (PLANNED)", Vector2(480, 358), 17)
 		_draw_text("F5: IMPORT ORIGINAL TV THEME (WAV)", Vector2(70, 398), 17, GOLD)
-		_draw_text("E: UNLOCKED ERA - " + era_labels[era_index] + "", Vector2(70, 426), 17, GOLD)
+		_draw_text("E: ERA " + era_labels[era_index] + "  |  AI: " + season_difficulty_names[era_index], Vector2(70, 426), 17, GOLD)
 		_draw_text("R: ROSTER   I: 3D INTRO   T: ALL ERAS   P: TEST ERA" if prototype_all_unlocked else "R: GLADIATOR ROSTER PREVIEW", Vector2(70, 458), 15)
 	elif screen == "PLAY":
 		draw_texture_rect(_era_logo(), Rect2(755, 52, 165, 75), false)
@@ -1354,6 +1366,9 @@ func _load_progress() -> void:
 	if cfg.load(SAVE_PATH) == OK:
 		unlock_gladiator = cfg.get_value("progress", "gladiator_unlocked", false)
 		season_wins = cfg.get_value("progress", "season_wins", 0)
+		eras_completed = bool(cfg.get_value("progress", "eras_completed", false))
+		if eras_completed:
+			unlock_gladiator = true
 		highest_era_unlocked = int(cfg.get_value("progress", "highest_era_unlocked", 0))
 		era_index = mini(highest_era_unlocked, era_labels.size() - 1)
 	if prototype_all_unlocked:
@@ -1365,5 +1380,6 @@ func _save_progress() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("progress", "gladiator_unlocked", unlock_gladiator)
 	cfg.set_value("progress", "season_wins", season_wins)
+	cfg.set_value("progress", "eras_completed", eras_completed)
 	cfg.set_value("progress", "highest_era_unlocked", highest_era_unlocked)
 	cfg.save(SAVE_PATH)
