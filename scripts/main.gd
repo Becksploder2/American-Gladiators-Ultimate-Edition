@@ -97,6 +97,7 @@ var hud_font: Font = ThemeDB.fallback_font
 var sound_player: AudioStreamPlayer
 var whistle_played := false
 var music_director: Node
+var referee_director: Node
 var theme_player: AudioStreamPlayer
 var theme_slot := "early"
 var theme_picker: FileDialog
@@ -111,6 +112,8 @@ func _ready() -> void:
 	_setup_audio()
 	music_director = load("res://scripts/music_director.gd").new()
 	add_child(music_director)
+	referee_director = load("res://scripts/referee_director.gd").new()
+	add_child(referee_director)
 	_load_progress()
 	var music_cfg := ConfigFile.new()
 	if music_cfg.load("user://music.cfg") == OK:
@@ -458,11 +461,13 @@ func _start_event() -> void:
 	screen = "PLAY"
 	event_name = upcoming_events[event_index]
 	music_director.set_era("2026" if mode == "MODERN" else era_labels[era_index])
+	referee_director.select_era("2026" if mode == "MODERN" else era_labels[era_index])
 	music_director.cue("eliminator" if event_name.contains("ELIMINATOR") else "event_" + event_name)
 	event_player_start = score
 	ai_score = 0
 	time_left = _event_duration(event_name)
-	whistle_countdown = 3.0 if mode == "MODERN" else 1.8
+	whistle_countdown = 4.5 if mode == "MODERN" or era_index != 0 else 2.0
+	referee_director.play_cue("contender_ready")
 	contender = Vector2(150, 295)
 	gladiator = Vector2(680, 295)
 	ai_contender = Vector2(815, 395)
@@ -522,7 +527,7 @@ func _start_event() -> void:
 	ai_recovery = 0.0
 	ball = Vector2(380, 295)
 	holding_ball = false
-	message = "CONTENDER READY!  GLADIATOR READY!"
+	message = "SILENT EXECUTIONER SIGNAL" if mode == "ERAS" and era_index == 0 else "CONTENDER READY!  GLADIATOR READY!"
 	whistle_played = false
 	_play_tone(440.0, 0.22)
 	queue_redraw()
@@ -582,10 +587,16 @@ func _process(delta: float) -> void:
 	if screen != "PLAY":
 		return
 	if whistle_countdown > 0:
+		var previous_countdown := whistle_countdown
 		whistle_countdown = maxf(0, whistle_countdown - delta)
+		if previous_countdown > 3.0 and whistle_countdown <= 3.0:
+			referee_director.play_cue("gladiators_ready" if event_name.contains("POWERBALL") else "gladiator_ready")
+		if previous_countdown > 1.0 and whistle_countdown <= 1.0:
+			referee_director.play_cue("countdown")
 		if whistle_countdown <= 0 and not whistle_played:
 			whistle_played = true
-			_play_tone(1150.0, 0.45)
+			referee_director.play_whistle()
+			referee_director.play_cue("start")
 			message = "WHISTLE! GO!"
 			music_director.cue("event_start")
 		queue_redraw()
