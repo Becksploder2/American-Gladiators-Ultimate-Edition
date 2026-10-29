@@ -31,6 +31,9 @@ var ai_recovery := 0.0
 var ai_goal_index := 0
 var powerball_out := false
 var powerball_reset_time := 0.0
+var joust_survival := 0.0
+var joust_finished := false
+var joust_attack_cooldown := 0.0
 var cannon_phase := 0.0
 var cannon_velocity := 0.0
 var cannon_launched := false
@@ -363,7 +366,7 @@ func _start_event() -> void:
 	event_name = upcoming_events[event_index]
 	event_player_start = score
 	ai_score = 0
-	time_left = 60.0 if event_name == "ASSAULT" else 45.0
+	time_left = 60.0 if event_name == "ASSAULT" or (event_name == "JOUST" and era_index == 0 and mode == "ERAS") else 45.0
 	whistle_countdown = 3.0 if mode == "MODERN" else 1.8
 	contender = Vector2(150, 295)
 	gladiator = Vector2(680, 295)
@@ -374,6 +377,12 @@ func _start_event() -> void:
 	powerball_out = false
 	powerball_reset_time = 0.0
 	ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
+	joust_survival = 0.0
+	joust_finished = false
+	joust_attack_cooldown = 0.0
+	if event_name == "JOUST" and era_index == 0 and mode == "ERAS":
+		contender = Vector2(345, 320)
+		gladiator = Vector2(615, 320)
 	cannon_phase = -1.0
 	cannon_velocity = 0.0
 	cannon_launched = false
@@ -457,7 +466,7 @@ func _process(delta: float) -> void:
 	if event_name != "HUMAN CANNONBALL":
 		time_left -= delta
 	var movement := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	if event_name != "HUMAN CANNONBALL":
+	if event_name != "HUMAN CANNONBALL" and not (event_name == "JOUST" and era_index == 0 and mode == "ERAS"):
 		contender += movement * move_speed * (1.4 if Input.is_action_pressed("dash") else 1.0) * delta
 		contender.x = clampf(contender.x, 60, WIDTH - 60)
 		contender.y = clampf(contender.y, 180, HEIGHT - 75)
@@ -510,6 +519,38 @@ func _process(delta: float) -> void:
 			if ai_holding and ai_contender.distance_to(defender) < 30:
 				ai_holding = false
 				ai_recovery = 0.8
+	elif event_name == "JOUST" and era_index == 0 and mode == "ERAS":
+		joust_survival += delta
+		joust_attack_cooldown = maxf(0.0, joust_attack_cooldown - delta)
+		var previous_milestone := mini(5, int((joust_survival - delta) / 10.0))
+		var current_milestone := mini(5, int(joust_survival / 10.0))
+		if current_milestone > previous_milestone:
+			score = event_player_start + current_milestone * 5
+			message = "SURVIVED " + str(current_milestone * 10) + " SECONDS! +" + str(current_milestone * 5)
+		contender.x = clampf(contender.x + movement.x * 150.0 * delta, 205.0, 755.0)
+		gladiator.x = move_toward(gladiator.x, contender.x + 62.0, 48.0 * delta)
+		if Input.is_action_just_pressed("primary_action") and joust_attack_cooldown <= 0.0:
+			joust_attack_cooldown = 0.55
+			if absf(contender.x - gladiator.x) < 105.0:
+				gladiator.x += 68.0
+				message = "PUGIL STICK STRIKE!"
+			else:
+				message = "STRIKE MISSED!"
+		if absf(contender.x - gladiator.x) < 75.0 and joust_attack_cooldown <= 0.0:
+			contender.x -= 32.0 * delta
+		if gladiator.x >= 755.0:
+			score = event_player_start + 100
+			joust_finished = true
+			message = "GLADIATOR THROUGH TRAPDOOR! 100 POINTS!"
+		elif contender.x <= 205.0:
+			joust_finished = true
+			message = "CONTENDER FELL THROUGH TRAPDOOR!"
+		if joust_finished:
+			screen = "RESULT"
+		elif time_left <= 0.0:
+			score = event_player_start + 50
+			screen = "RESULT"
+			message = "60-SECOND DRAW! 50 POINTS!"
 	elif event_name == "HUMAN CANNONBALL":
 		# Side-view pendulum: release from the left, strike the pad-bearing Gladiator on the right.
 		if not cannon_launched and Input.is_action_just_pressed("primary_action"):
@@ -563,7 +604,7 @@ func _process(delta: float) -> void:
 			message = "DIRECT HIT - ROUND OVER"
 	else:
 		gladiator = gladiator.move_toward(contender, delta * ai_speed)
-	if time_left <= 0 or (event_name == "HUMAN CANNONBALL" and cannon_resolved and cannon_attempts >= 3):
+	if (time_left <= 0 and not (event_name == "JOUST" and era_index == 0 and mode == "ERAS")) or (event_name == "HUMAN CANNONBALL" and cannon_resolved and cannon_attempts >= 3):
 		screen = "RESULT"
 		time_left = 0.0
 		_play_tone(950.0, 0.7)
@@ -754,6 +795,20 @@ func _draw() -> void:
 			_draw_contender_uniform(contender, false)
 			for defender in powerball_defenders:
 				_draw_character(defender, true)
+		elif event_name == "JOUST" and era_index == 0 and mode == "ERAS":
+			# Season 1A drawbridge with hinged trapdoors at both ends.
+			draw_rect(Rect2(185, 349, 590, 22), Color("#9d754c"))
+			for i in range(14):
+				draw_line(Vector2(198 + i * 40, 349), Vector2(198 + i * 40, 370), INK, 2.0)
+			draw_rect(Rect2(185, 349, 70, 22), RED, false, 3.0)
+			draw_rect(Rect2(705, 349, 70, 22), RED, false, 3.0)
+			draw_line(Vector2(185, 349), Vector2(100, 205), GOLD, 4.0)
+			draw_line(Vector2(775, 349), Vector2(860, 205), GOLD, 4.0)
+			_draw_character(contender, false)
+			_draw_character(gladiator, true)
+			draw_line(contender + Vector2(12, -9), contender + Vector2(72, -34), GOLD, 9.0)
+			draw_line(gladiator + Vector2(-12, -9), gladiator + Vector2(-72, -34), GOLD, 9.0)
+			_draw_text("ARROWS: MOVE   Z: PUGIL STRIKE   TRAPDOORS AT BOTH ENDS", Vector2(150, 424), 17, GOLD)
 		elif event_name == "HUMAN CANNONBALL":
 			# Side-on staging with a raised takeoff, swinging rope, and padded Gladiator platform.
 			draw_rect(Rect2(95, 365, 170, 25), GOLD)
