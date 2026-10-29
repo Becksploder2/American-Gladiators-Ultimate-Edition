@@ -103,10 +103,46 @@ func _play_tone(frequency: float, duration: float) -> void:
 	sound_player.stream = audio
 	sound_player.play()
 
+func _load_pcm_wav(path: String) -> AudioStreamWAV:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return null
+	var bytes := file.get_buffer(file.get_length())
+	if bytes.size() < 44 or bytes.slice(0, 4).get_string_from_ascii() != "RIFF":
+		return null
+	var offset := 12
+	var channels := 0
+	var rate := 0
+	var bits := 0
+	var encoding := 0
+	var audio_bytes := PackedByteArray()
+	while offset + 8 <= bytes.size():
+		var chunk := bytes.slice(offset, offset + 4).get_string_from_ascii()
+		var size := int(bytes.decode_u32(offset + 4))
+		var start := offset + 8
+		if start + size > bytes.size():
+			break
+		if chunk == "fmt " and size >= 16:
+			encoding = bytes.decode_u16(start)
+			channels = bytes.decode_u16(start + 2)
+			rate = bytes.decode_u32(start + 4)
+			bits = bytes.decode_u16(start + 14)
+		elif chunk == "data":
+			audio_bytes = bytes.slice(start, start + size)
+		offset = start + size + (size % 2)
+	if encoding != 1 or bits != 16 or (channels != 1 and channels != 2) or rate <= 0 or audio_bytes.is_empty():
+		return null
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.stereo = channels == 2
+	wav.mix_rate = rate
+	wav.data = audio_bytes
+	return wav
+
 func _theme_selected(path: String) -> void:
-	var stream := AudioStreamWAV.load_from_file(path)
+	var stream: AudioStreamWAV = _load_pcm_wav(path)
 	if stream == null:
-		message = "COULD NOT LOAD WAV FILE"
+		message = "USE 16-BIT PCM WAV"
 		queue_redraw()
 		return
 	theme_player.stream = stream
