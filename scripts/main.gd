@@ -42,6 +42,10 @@ var conquer_won := false
 var conquer_push := 0.0
 var conquer_clock := 10.0
 var breakthrough_guard_cooldown := 0.0
+var joust_player_hp := 100.0
+var joust_gladiator_hp := 100.0
+var joust_cpu_attack_cooldown := 0.0
+var joust_hit_flash := 0.0
 var joust_survival := 0.0
 var joust_finished := false
 var joust_attack_cooldown := 0.0
@@ -403,6 +407,10 @@ func _start_event() -> void:
 	if event_name == "BREAKTHROUGH AND CONQUER":
 		contender = Vector2(145, 320)
 		gladiator = Vector2(485, 320)
+	joust_player_hp = 100.0
+	joust_gladiator_hp = 100.0
+	joust_cpu_attack_cooldown = 1.1
+	joust_hit_flash = 0.0
 	joust_survival = 0.0
 	joust_finished = false
 	joust_attack_cooldown = 0.0
@@ -616,36 +624,43 @@ func _process(delta: float) -> void:
 			elif conquer_clock <= 0.0:
 				message = "CONQUER TIME EXPIRED!"
 				screen = "RESULT"
-	elif event_name == "JOUST" and era_index == 0 and mode == "ERAS":
+	elif event_name == "JOUST" and mode == "ERAS":
 		joust_survival += delta
 		joust_attack_cooldown = maxf(0.0, joust_attack_cooldown - delta)
 		var previous_milestone := mini(5, int((joust_survival - delta) / 10.0))
 		var current_milestone := mini(5, int(joust_survival / 10.0))
-		if current_milestone > previous_milestone:
+		if current_milestone > previous_milestone and era_index == 0:
 			score = event_player_start + current_milestone * 5
 			message = "SURVIVED " + str(current_milestone * 10) + " SECONDS! +" + str(current_milestone * 5)
+		joust_cpu_attack_cooldown = maxf(0.0, joust_cpu_attack_cooldown - delta)
+		joust_hit_flash = maxf(0.0, joust_hit_flash - delta)
 		contender.x = clampf(contender.x + movement.x * 150.0 * delta, 205.0, 755.0)
 		gladiator.x = move_toward(gladiator.x, contender.x + 62.0, 48.0 * delta)
 		if Input.is_action_just_pressed("primary_action") and joust_attack_cooldown <= 0.0:
 			joust_attack_cooldown = 0.55
 			if absf(contender.x - gladiator.x) < 105.0:
-				gladiator.x += 68.0
+				gladiator.x += 30.0
+				joust_gladiator_hp = maxf(0.0, joust_gladiator_hp - 25.0)
+				joust_hit_flash = 0.22
 				message = "PUGIL STICK STRIKE!"
 			else:
 				message = "STRIKE MISSED!"
-		if absf(contender.x - gladiator.x) < 75.0 and joust_attack_cooldown <= 0.0:
-			contender.x -= 32.0 * delta
-		if gladiator.x >= 755.0:
-			score = event_player_start + 100
+		if absf(contender.x - gladiator.x) < 110.0 and joust_cpu_attack_cooldown <= 0.0:
+			joust_cpu_attack_cooldown = 1.25
+			joust_player_hp = maxf(0.0, joust_player_hp - 18.0)
+			contender.x -= 25.0
+			message = "GLADIATOR COUNTERATTACK!"
+		if gladiator.x >= 755.0 or joust_gladiator_hp <= 0.0:
+			score = event_player_start + (100 if era_index == 0 else 10)
 			joust_finished = true
 			message = "GLADIATOR THROUGH TRAPDOOR! 100 POINTS!"
-		elif contender.x <= 205.0:
+		elif contender.x <= 205.0 or joust_player_hp <= 0.0:
 			joust_finished = true
 			message = "CONTENDER FELL THROUGH TRAPDOOR!"
 		if joust_finished:
 			screen = "RESULT"
 		elif time_left <= 0.0:
-			score = event_player_start + 50
+			score = event_player_start + (50 if era_index == 0 else 0)
 			screen = "RESULT"
 			message = "60-SECOND DRAW! 50 POINTS!"
 	elif event_name == "HUMAN CANNONBALL":
@@ -662,7 +677,7 @@ func _process(delta: float) -> void:
 			if swing_pos.x > 615.0 and cannon_velocity > 0.0:
 				cannon_resolved = true
 				cannon_attempts += 1
-				if cannon_velocity > 1.2 and cannon_guard < 0.72:
+				if cannon_velocity > 1.2 and cannon_guard < 0.55:
 					var earned := 40 if cannon_attempts == 3 else 30
 					score += earned
 					message = "GLADIATOR KNOCKED OFF! +" + str(earned)
@@ -916,20 +931,33 @@ func _draw() -> void:
 					draw_line(contender, gladiator + limb_offsets[conquer_grab_limb], GOLD, 5.0)
 				_draw_text("GRAB: A/Z LEFT LEG  B/X RIGHT LEG  X/C LEFT ARM  Y/V RIGHT ARM", Vector2(105, 455), 14, GOLD)
 				_draw_text("TIME: " + str(ceili(conquer_clock)), Vector2(410, 202), 20, GOLD)
-		elif event_name == "JOUST" and era_index == 0 and mode == "ERAS":
-			# Season 1A drawbridge with hinged trapdoors at both ends.
-			draw_rect(Rect2(185, 349, 590, 22), Color("#9d754c"))
-			for i in range(14):
+		elif event_name == "JOUST" and mode == "ERAS":
+			# S1A drawbridge; S1B onward elevated pedestals over crash mats.
+			if era_index == 0:
+				draw_rect(Rect2(185, 349, 590, 22), Color("#9d754c"))
+			else:
+				draw_rect(Rect2(170, 398, 625, 24), BLUE)
+				draw_rect(Rect2(250, 349, 120, 14), GOLD)
+				draw_rect(Rect2(585, 349, 120, 14), GOLD)
+				_draw_text("CRASH MATS", Vector2(405, 415), 17, LIGHT)
+			for i in range(14 if era_index == 0 else 0):
 				draw_line(Vector2(198 + i * 40, 349), Vector2(198 + i * 40, 370), INK, 2.0)
-			draw_rect(Rect2(185, 349, 70, 22), RED, false, 3.0)
-			draw_rect(Rect2(705, 349, 70, 22), RED, false, 3.0)
+			if era_index == 0:
+				draw_rect(Rect2(185, 349, 70, 22), RED, false, 3.0)
+				draw_rect(Rect2(705, 349, 70, 22), RED, false, 3.0)
 			draw_line(Vector2(185, 349), Vector2(100, 205), GOLD, 4.0)
 			draw_line(Vector2(775, 349), Vector2(860, 205), GOLD, 4.0)
 			_draw_character(contender, false)
 			_draw_character(gladiator, true)
 			draw_line(contender + Vector2(12, -9), contender + Vector2(72, -34), GOLD, 9.0)
 			draw_line(gladiator + Vector2(-12, -9), gladiator + Vector2(-72, -34), GOLD, 9.0)
-			_draw_text("ARROWS: MOVE   Z: PUGIL STRIKE   TRAPDOORS AT BOTH ENDS", Vector2(150, 424), 17, GOLD)
+			draw_rect(Rect2(250, 175, 205, 17), RED)
+			draw_rect(Rect2(250, 175, 205.0 * joust_player_hp / 100.0, 17), GREEN)
+			draw_rect(Rect2(505, 175, 205, 17), RED)
+			draw_rect(Rect2(505, 175, 205.0 * joust_gladiator_hp / 100.0, 17), GREEN)
+			_draw_text("CONTENDER", Vector2(250, 168), 15, LIGHT)
+			_draw_text("GLADIATOR", Vector2(505, 168), 15, LIGHT)
+			_draw_text("ARROWS: MOVE   Z: STRIKE   EMPTY BAR = FALL", Vector2(205, 445), 17, GOLD)
 		elif event_name == "HUMAN CANNONBALL":
 			# Side-on staging with a raised takeoff, swinging rope, and padded Gladiator platform.
 			draw_rect(Rect2(95, 365, 170, 25), GOLD)
@@ -941,7 +969,9 @@ func _draw() -> void:
 			draw_line(cannon_pivot, swing_pos, Color("#e5e3d7"), 4.0)
 			_draw_contender_uniform(swing_pos, false)
 			_draw_character(gladiator, true)
-			draw_rect(Rect2(gladiator + Vector2(-32, -18), Vector2(12, 55)), BLUE)
+			draw_rect(Rect2(gladiator + Vector2(-32, -18 - cannon_guard * 20.0), Vector2(15, 55)), BLUE)
+			draw_rect(Rect2(gladiator + Vector2(-35, -21 - cannon_guard * 20.0), Vector2(21, 7)), GOLD)
+			_draw_text("BLOCK PAD: " + str(int(cannon_guard * 100.0)) + "%", Vector2(620, 245), 15, GOLD)
 			_draw_text("SWING " + str(mini(cannon_attempts + (0 if cannon_launched else 1), 3)) + "/3   Z: LAUNCH   X: NEXT SWING", Vector2(240, 425), 18, GOLD)
 		elif event_name == "ASSAULT":
 			for i in range(5):
