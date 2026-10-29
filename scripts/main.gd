@@ -274,6 +274,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	queue_redraw()
 
 func _start_season(chosen_mode: String) -> void:
+	if chosen_mode == "MODERN" and not unlock_gladiator:
+		message = "2026 MODE LOCKED UNTIL ERAS CHAMPIONSHIP"
+		queue_redraw()
+		return
 	mode = chosen_mode
 	event_index = 0
 	score = 0
@@ -281,6 +285,8 @@ func _start_season(chosen_mode: String) -> void:
 	_start_event()
 
 func _start_event() -> void:
+	if theme_player.playing:
+		theme_player.stop()
 	screen = "PLAY"
 	event_name = upcoming_events[event_index]
 	time_left = 50.0
@@ -353,6 +359,23 @@ func _next_event() -> void:
 
 func _draw_text(label: String, pos: Vector2, size: int = 20, tint: Color = LIGHT) -> void:
 	draw_string(hud_font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, tint)
+
+func _draw_character(pos: Vector2, gladiator_side: bool) -> void:
+	# Temporary 16-bit character silhouette; unique photo-based character sprites remain pending.
+	var skin := Color("#c48b6a") if gladiator_side else Color("#e5b38a")
+	var suit := RED if gladiator_side else BLUE
+	var hair := Color("#34251d")
+	draw_rect(Rect2(pos + Vector2(-12, -39), Vector2(24, 9)), hair)
+	draw_rect(Rect2(pos + Vector2(-11, -30), Vector2(22, 20)), skin)
+	draw_rect(Rect2(pos + Vector2(-9, -22), Vector2(5, 3)), INK)
+	draw_rect(Rect2(pos + Vector2(4, -22), Vector2(5, 3)), INK)
+	draw_rect(Rect2(pos + Vector2(-15, -10), Vector2(30, 28)), suit)
+	draw_rect(Rect2(pos + Vector2(-23, -8), Vector2(8, 27)), skin)
+	draw_rect(Rect2(pos + Vector2(15, -8), Vector2(8, 27)), skin)
+	draw_rect(Rect2(pos + Vector2(-13, 18), Vector2(11, 23)), suit)
+	draw_rect(Rect2(pos + Vector2(2, 18), Vector2(11, 23)), suit)
+	draw_rect(Rect2(pos + Vector2(-13, 39), Vector2(11, 7)), Color("#1a233e"))
+	draw_rect(Rect2(pos + Vector2(2, 39), Vector2(11, 7)), Color("#1a233e"))
 
 func _draw_era_arena() -> void:
 	var wall := Color("#30333e")
@@ -437,8 +460,8 @@ func _draw() -> void:
 		draw_rect(Rect2(64, 169, 832, 270), Color("#286ba9"), false, 6)
 		draw_circle(Vector2(850, 260), 32, GOLD)
 		draw_circle(ball, 10, GOLD)
-		draw_rect(Rect2(contender - Vector2(12, 20), Vector2(24, 40)), GREEN)
-		draw_rect(Rect2(gladiator - Vector2(15, 22), Vector2(30, 44)), RED)
+		_draw_character(contender, false)
+		_draw_character(gladiator, true)
 		_draw_text(mode + " " + era_labels[era_index] + " - " + event_name, Vector2(63, 126), 22, GOLD)
 		_draw_text(host_primary + " / " + host_secondary, Vector2(64, 145), 13, LIGHT)
 		_draw_text("POINTS " + str(score), Vector2(690, 126), 21)
