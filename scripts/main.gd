@@ -1183,7 +1183,11 @@ func _draw() -> void:
 			else:
 				_draw_character(contender, false)
 			_draw_character(gladiator, true)
-			_draw_text("A: FIRE   B: PICK UP   X: JUMP   Y: ROLL-A-DOPE (S1B+)", Vector2(145, 445), 16, GOLD)
+			if era_index == 0:
+				_draw_text("S1A RULES: NO POINTS FOR FIRING A WEAPON", Vector2(220, 170), 16, GOLD)
+				_draw_text("A/Z: FIRE   B/X: PICK UP   X/C: JUMP", Vector2(230, 445), 16, GOLD)
+			else:
+				_draw_text("A/Z: FIRE   B/X: PICK UP   X/C: JUMP   Y/V: ROLL (S1B+)", Vector2(130, 445), 16, GOLD)
 		else:
 			_draw_character(contender, false)
 			_draw_character(gladiator, true)
