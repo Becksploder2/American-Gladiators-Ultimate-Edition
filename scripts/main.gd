@@ -13,7 +13,7 @@ const GREEN := Color("#2caa81")
 
 var mode := "ERAS"
 var era_index := 0
-var era_labels := ["S1A", "S1B", "S2A", "S2B", "S3A", "S3B", "S4A", "S4B", "S5A", "S5B", "S6A", "S6B", "2026"]
+var era_labels := ["S1A", "S1B", "S2A", "S2B", "S3A", "S3B", "S4A", "S4B", "S5A", "S5B", "S6", "S7", "2026"]
 var host_primary := "MIKE ADAMLE"
 var host_secondary := "JOE THEISMANN"
 var screen := "INTRO"
@@ -378,43 +378,63 @@ func _draw_character(pos: Vector2, gladiator_side: bool) -> void:
 	draw_rect(Rect2(pos + Vector2(2, 39), Vector2(11, 7)), Color("#1a233e"))
 
 func _draw_era_arena() -> void:
-	var wall := Color("#30333e")
-	var floor_color := Color("#64676e")
-	var accent := Color("#b7a17b")
-	if era_index >= 1 and era_index <= 3:
-		wall = Color("#243b64")
-		floor_color = Color("#3c735f")
-		accent = Color("#d1d6df")
-	elif era_index >= 4 and era_index <= 7:
-		wall = Color("#1a3457")
-		floor_color = Color("#aab0b8") if era_index >= 6 else Color("#367a59")
-		accent = Color("#e9e9ef")
-	elif era_index >= 8 and era_index <= 11:
-		wall = Color("#555b68")
-		floor_color = Color("#b8bdc4")
-		accent = Color("#c83a49")
-	elif era_index >= 12:
-		wall = Color("#111e3a")
-		floor_color = Color("#226a93")
-		accent = Color("#e9b34d")
-	draw_rect(Rect2(50, 151, 860, 307), wall)
-	for i in range(13):
-		draw_rect(Rect2(55 + i * 65, 158, 56, 55), Color("#181b2b"))
-		for j in range(4):
-			draw_circle(Vector2(62 + i * 65 + j * 12, 178 + (j % 2) * 16), 4, accent)
-	if era_index == 0:
-		for i in range(9):
-			draw_rect(Rect2(60 + i * 100, 208, 12, 95), Color("#8b8d91"))
-			draw_rect(Rect2(55 + i * 100, 200, 23, 12), accent)
-	draw_rect(Rect2(54, 302, 852, 152), floor_color)
-	for i in range(5):
-		draw_line(Vector2(70 + i * 175, 310), Vector2(70 + i * 175, 447), accent, 2)
-	draw_rect(Rect2(54, 302, 852, 152), accent, false, 4)
-	if era_index >= 9 and era_index <= 11:
-		for x in [105, 760]:
-			draw_rect(Rect2(x, 166, 90, 54), Color("#111b2b"))
-			draw_rect(Rect2(x, 166, 90, 54), accent, false, 4)
-			_draw_text("AG", Vector2(x + 27, 204), 29, accent)
+	# Original US series: S1A Roman-style raised stands; S1B+ modern indoor arena.
+	# This is a reference-informed procedural backdrop, not a frame-accurate recreation.
+	var is_roman := era_index == 0
+	var is_modern := era_labels[era_index] == "2026"
+	var wall := Color("#504638") if is_roman else Color("#14274a")
+	var floor_color := Color("#89775a") if is_roman else Color("#3a6582")
+	var metal := Color("#c7b9a0") if is_roman else Color("#a5b7cc")
+	if era_index >= 4 and not is_modern:
+		wall = Color("#192c45")
+		floor_color = Color("#526c76")
+	if era_index >= 8 and not is_modern:
+		wall = Color("#343b4c")
+		floor_color = Color("#727b88")
+	if is_modern:
+		wall = Color("#09152f")
+		floor_color = Color("#1a476f")
+		metal = Color("#7ccaff")
+	draw_rect(Rect2(50, 150, 860, 310), wall)
+	if is_roman:
+		# High Roman coliseum stands, stone arches and columned parapet.
+		for i in range(11):
+			var x := 57.0 + float(i) * 78.0
+			draw_rect(Rect2(x, 166, 66, 95), Color("#302b2a"))
+			draw_arc(Vector2(x + 33, 201), 29, PI, TAU, 18, metal, 7)
+			draw_rect(Rect2(x, 203, 8, 78), metal)
+			draw_rect(Rect2(x + 58, 203, 8, 78), metal)
+			draw_rect(Rect2(x - 3, 160, 72, 11), Color("#b7a183"))
+		draw_rect(Rect2(53, 265, 854, 22), Color("#b7a183"))
+		for i in range(10):
+			draw_rect(Rect2(70 + i * 85, 275, 10, 26), Color("#675544"))
+	else:
+		# Indoor bleachers, horizontal lighting gantry and video scoreboard.
+		draw_rect(Rect2(55, 162, 850, 102), Color("#0d1930"))
+		for row in range(4):
+			for seat in range(35):
+				var sx := 65.0 + float(seat) * 24.0
+				var sy := 175.0 + float(row) * 20.0
+				draw_rect(Rect2(sx, sy, 10, 7), Color("#cf4253") if (seat + row) % 3 == 0 else Color("#9bacc5"))
+		draw_rect(Rect2(55, 258, 850, 12), metal)
+		for i in range(8):
+			var lx := 105.0 + float(i) * 110.0
+			draw_rect(Rect2(lx, 153, 42, 8), Color("#e6e4cd"))
+		if era_index >= 4:
+			for x in [120.0, 755.0]:
+				draw_rect(Rect2(x, 183, 90, 54), Color("#0b1224"))
+				draw_rect(Rect2(x, 183, 90, 54), metal, false, 3)
+				_draw_text("AG", Vector2(x + 25, 219), 27, GOLD)
+	draw_rect(Rect2(54, 300, 852, 153), floor_color)
+	for i in range(6):
+		draw_line(Vector2(65 + i * 165, 304), Vector2(65 + i * 165, 449), metal.darkened(0.3), 2)
+	draw_rect(Rect2(54, 300, 852, 153), metal, false, 4)
+	if is_roman:
+		_draw_text("1989 ORIGINAL ROMAN ARENA", Vector2(320, 289), 14, GOLD)
+	elif is_modern:
+		_draw_text("2026 PRIME VIDEO ARENA - WORK IN PROGRESS", Vector2(265, 289), 14, GOLD)
+	else:
+		_draw_text("CLASSIC INDOOR GLADIATOR ARENA", Vector2(300, 289), 14, GOLD)
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(WIDTH, HEIGHT)), INK)
