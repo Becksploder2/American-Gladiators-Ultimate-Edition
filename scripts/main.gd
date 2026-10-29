@@ -674,8 +674,6 @@ func _process(delta: float) -> void:
 					conquer_grab_cooldown = 0.45
 					message = "GLADIATOR BROKE THE HOLD!"
 			else:
-					gladiator = gladiator.move_toward(Vector2(480, 320), 30.0 * delta)
-			else:
 				gladiator = gladiator.move_toward(Vector2(480, 320), 42.0 * delta)
 				conquer_tug_meter = move_toward(conquer_tug_meter, 0.0, 35.0 * delta)
 			if conquer_grab_cooldown > 0.0:
