@@ -5,7 +5,7 @@ config_version=5
 [application]
 config/name="American Gladiators Ultimate Edition"
 run/main_scene="res://scenes/main.tscn"
-config/features=PackedStringArray("4.3", "GL Compatibility")
+config/features=PackedStringArray("4.3", "GL Compatibility", "Forward Plus")
 
 [display]
 window/size/viewport_width=960
@@ -14,6 +14,8 @@ window/stretch/mode="canvas_items"
 
 [rendering]
 renderer/rendering_method="gl_compatibility"
+; Forward+ will become the default after the 3D test scene passes export and hardware checks.
+; The current 2D game remains on compatibility rendering during migration.
 renderer/rendering_method.mobile="gl_compatibility"
 textures/default_filters/use_nearest_mipmap_filter=false
 
