@@ -89,6 +89,7 @@ var gamepad_name := "KEYBOARD"
 var unlock_gladiator := false
 var season_wins := 0
 var highest_era_unlocked := 0
+var prototype_all_unlocked := true
 var tournament_round := 0
 var tournament_names: Array[String] = []
 var tournament_opponents: Array[String] = []
@@ -356,7 +357,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif screen == "INTRO":
 			screen = "MENU"
 		elif screen == "MENU":
-			if key == KEY_I:
+			if key == KEY_T and prototype_all_unlocked:
+				era_index = (era_index + 1) % era_labels.size()
+				_refresh_schedule()
+				return
+			elif key == KEY_P and prototype_all_unlocked:
+				_start_season("ERAS")
+				return
+			elif key == KEY_I:
 				var intro_cfg := ConfigFile.new()
 				intro_cfg.load("user://intro_studio.cfg")
 				intro_cfg.set_value("intro", "era", "2026" if era_index == 12 else era_labels[era_index])
@@ -656,7 +664,7 @@ func _process(delta: float) -> void:
 			ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
 		for i in range(powerball_defenders.size()):
 			var target := contender if i == 0 else (ai_contender if i == 2 else (contender if holding_ball else ai_contender))
-			var zone_x := [320.0, 480.0, 640.0][i]
+			var zone_x: float = [320.0, 480.0, 640.0][i]
 			target.x = clampf(target.x, zone_x - 125.0, zone_x + 125.0)
 			powerball_defenders[i] = powerball_defenders[i].move_toward(target, delta * ai_speed * (0.70 + 0.08 * i))
 		if not powerball_out and Input.is_action_just_pressed("secondary_action") and contender.distance_to(holder) < 45 and not holding_ball:
@@ -1123,7 +1131,7 @@ func _draw() -> void:
 		_draw_text("4  CREATE A CONTENDER (PLANNED)", Vector2(480, 358), 17)
 		_draw_text("F5: IMPORT ORIGINAL TV THEME (WAV)", Vector2(70, 398), 17, GOLD)
 		_draw_text("E: UNLOCKED ERA - " + era_labels[era_index] + "", Vector2(70, 426), 17, GOLD)
-		_draw_text("R: GLADIATOR ROSTER PREVIEW   |   Gladiator Creator locked.", Vector2(70, 458), 15)
+		_draw_text("R: ROSTER   I: 3D INTRO   T: ALL ERAS   P: TEST ERA" if prototype_all_unlocked else "R: GLADIATOR ROSTER PREVIEW", Vector2(70, 458), 15)
 	elif screen == "PLAY":
 		draw_texture_rect(_era_logo(), Rect2(755, 52, 165, 75), false)
 		_draw_era_arena()
@@ -1340,6 +1348,10 @@ func _load_progress() -> void:
 		season_wins = cfg.get_value("progress", "season_wins", 0)
 		highest_era_unlocked = int(cfg.get_value("progress", "highest_era_unlocked", 0))
 		era_index = mini(highest_era_unlocked, era_labels.size() - 1)
+	if prototype_all_unlocked:
+		unlock_gladiator = true
+		highest_era_unlocked = era_labels.size() - 1
+		era_index = 0
 
 func _save_progress() -> void:
 	var cfg := ConfigFile.new()
