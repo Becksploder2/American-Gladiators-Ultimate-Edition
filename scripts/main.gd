@@ -62,13 +62,17 @@ func _ready() -> void:
 	queue_redraw()
 
 func _install_input_actions() -> void:
-	_bind_action("move_left", KEY_A, JOY_BUTTON_DPAD_LEFT, JOY_AXIS_LEFT_X, -1.0)
-	_bind_action("move_right", KEY_D, JOY_BUTTON_DPAD_RIGHT, JOY_AXIS_LEFT_X, 1.0)
-	_bind_action("move_up", KEY_W, JOY_BUTTON_DPAD_UP, JOY_AXIS_LEFT_Y, -1.0)
-	_bind_action("move_down", KEY_S, JOY_BUTTON_DPAD_DOWN, JOY_AXIS_LEFT_Y, 1.0)
-	_bind_action("primary_action", KEY_SPACE, JOY_BUTTON_A, -1, 0.0)
+	_bind_action("move_left", KEY_LEFT, JOY_BUTTON_DPAD_LEFT, JOY_AXIS_LEFT_X, -1.0)
+	_bind_action("move_right", KEY_RIGHT, JOY_BUTTON_DPAD_RIGHT, JOY_AXIS_LEFT_X, 1.0)
+	_bind_action("move_up", KEY_UP, JOY_BUTTON_DPAD_UP, JOY_AXIS_LEFT_Y, -1.0)
+	_bind_action("move_down", KEY_DOWN, JOY_BUTTON_DPAD_DOWN, JOY_AXIS_LEFT_Y, 1.0)
+	_bind_action("primary_action", KEY_Z, JOY_BUTTON_A, -1, 0.0)
+	_bind_action("secondary_action", KEY_X, JOY_BUTTON_B, -1, 0.0)
+	_bind_action("pickup_weapon", KEY_C, JOY_BUTTON_X, -1, 0.0)
 	_bind_action("dash", KEY_SHIFT, JOY_BUTTON_RIGHT_SHOULDER, -1, 0.0)
 
+# Genesis-style keyboard layout: arrow D-pad, Z=A, X=B, C=C.
+# Actions B and C are reserved for event-specific behavior where not yet implemented.
 func _bind_action(action: String, key: Key, button: int, axis: int, axis_direction: float) -> void:
 	if not InputMap.has_action(action):
 		InputMap.add_action(action, 0.2)
@@ -260,7 +264,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			roster_page = maxi(0, roster_page - 1)
 		elif key == KEY_ESCAPE:
 			screen = "MENU"
-		elif screen == "RESULT" and (key == KEY_ENTER or key == KEY_SPACE):
+		elif screen == "RESULT" and (key == KEY_ENTER or key == KEY_Z):
 			_next_event()
 	if screen == "INTRO" and event is InputEventJoypadButton and event.pressed:
 		screen = "MENU"
@@ -324,7 +328,7 @@ func _process(delta: float) -> void:
 	contender.y = clampf(contender.y, 180, HEIGHT - 75)
 	gladiator = gladiator.move_toward(contender, delta * ai_speed)
 	if event_name.begins_with("POWERBALL"):
-		if Input.is_action_just_pressed("primary_action") and contender.distance_to(ball) < 46 and not holding_ball:
+		if (Input.is_action_just_pressed("primary_action") or Input.is_action_just_pressed("pickup_weapon")) and contender.distance_to(ball) < 46 and not holding_ball:
 			holding_ball = true
 		if holding_ball:
 			ball = contender + Vector2(0, -19)
