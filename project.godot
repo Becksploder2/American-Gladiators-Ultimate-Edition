@@ -17,10 +17,3 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/default_filters/use_nearest_mipmap_filter=false
 
-[input]
-move_left={"deadzone":0.2,"events":[{"type":"InputEventKey","physical_keycode":65},{"type":"InputEventJoypadMotion","axis":0,"axis_value":-1.0},{"type":"InputEventJoypadButton","button_index":13}]}
-move_right={"deadzone":0.2,"events":[{"type":"InputEventKey","physical_keycode":68},{"type":"InputEventJoypadMotion","axis":0,"axis_value":1.0},{"type":"InputEventJoypadButton","button_index":14}]}
-move_up={"deadzone":0.2,"events":[{"type":"InputEventKey","physical_keycode":87},{"type":"InputEventJoypadMotion","axis":1,"axis_value":-1.0},{"type":"InputEventJoypadButton","button_index":11}]}
-move_down={"deadzone":0.2,"events":[{"type":"InputEventKey","physical_keycode":83},{"type":"InputEventJoypadMotion","axis":1,"axis_value":1.0},{"type":"InputEventJoypadButton","button_index":12}]}
-primary_action={"deadzone":0.2,"events":[{"type":"InputEventKey","physical_keycode":32},{"type":"InputEventJoypadButton","button_index":0}]}
-dash={"deadzone":0.2,"events":[{"type":"InputEventKey","physical_keycode":16},{"type":"InputEventJoypadButton","button_index":5}]}
