@@ -29,6 +29,8 @@ var ai_holding := false
 var ai_score := 0
 var ai_recovery := 0.0
 var ai_goal_index := 0
+var powerball_out := false
+var powerball_reset_time := 0.0
 var assault_station := 0
 var assault_fired: Array[bool] = [false, false, false, false, false]
 var assault_projectile := Vector2(-100, -100)
@@ -328,6 +330,8 @@ func _start_event() -> void:
 	ai_holding = false
 	ai_score = 0
 	ai_recovery = 0.0
+	powerball_out = false
+	powerball_reset_time = 0.0
 	ai_goal_index = randi_range(0, _powerball_goals().size() - 1)
 	assault_station = 0
 	assault_fired = [false, false, false, false, false]
@@ -340,6 +344,31 @@ func _start_event() -> void:
 	whistle_played = false
 	_play_tone(440.0, 0.22)
 	queue_redraw()
+
+func _s1a_inside_powerball(pos: Vector2) -> bool:
+	# Upper half of a circle, with the baseline at y=445.
+	var dx := pos.x - 480.0
+	var dy := pos.y - 445.0
+	return dy <= 0.0 and dx * dx + dy * dy <= 390.0 * 390.0
+
+func _draw_soccer_ball(pos: Vector2, radius: float = 9.0) -> void:
+	draw_circle(pos, radius, Color("#f6f4e8"))
+	draw_circle(pos, radius, Color("#172131"), false, 1.5)
+	draw_colored_polygon(PackedVector2Array([
+		pos + Vector2(0, -radius * 0.55),
+		pos + Vector2(radius * 0.52, -radius * 0.17),
+		pos + Vector2(radius * 0.34, radius * 0.45),
+		pos + Vector2(-radius * 0.34, radius * 0.45),
+		pos + Vector2(-radius * 0.52, -radius * 0.17)
+	]), Color("#172131"))
+
+func _draw_ball_holder(pos: Vector2) -> void:
+	# Upright open cylindrical ball rack with visible soccer balls.
+	draw_rect(Rect2(pos + Vector2(-23, -18), Vector2(46, 40)), Color("#b4a467"))
+	draw_rect(Rect2(pos + Vector2(-23, -18), Vector2(46, 40)), GOLD, false, 2)
+	for offset in [-12, 0, 12]:
+		_draw_soccer_ball(pos + Vector2(offset, -15), 7.0)
+	draw_arc(pos + Vector2(0, -18), 23.0, 0.0, TAU, 24, GOLD, 3.0)
 
 func _assault_stations() -> Array[Vector2]:
 	return [Vector2(145, 400), Vector2(305, 345), Vector2(465, 290), Vector2(625, 345), Vector2(785, 400)]
@@ -372,6 +401,16 @@ func _process(delta: float) -> void:
 	contender.x = clampf(contender.x, 60, WIDTH - 60)
 	contender.y = clampf(contender.y, 180, HEIGHT - 75)
 	if event_name.contains("POWERBALL"):
+		powerball_reset_time = maxf(0.0, powerball_reset_time - delta)
+		if powerball_out and powerball_reset_time <= 0.0:
+			contender = Vector2(150, 370)
+			powerball_out = false
+			message = "BACK IN PLAY!"
+		if era_index == 0 and not powerball_out and not _s1a_inside_powerball(contender):
+			powerball_out = true
+			powerball_reset_time = 1.0
+			holding_ball = false
+			message = "OUT OF BOUNDS - BALL LOST!"
 		var holder := Vector2(145, 395)
 		var cpu_holder := Vector2(815, 395)
 		ai_recovery = maxf(0.0, ai_recovery - delta)
@@ -387,7 +426,7 @@ func _process(delta: float) -> void:
 		for i in range(powerball_defenders.size()):
 			var target := ai_contender if i == 2 else contender
 			powerball_defenders[i] = powerball_defenders[i].move_toward(target, delta * ai_speed)
-		if Input.is_action_just_pressed("secondary_action") and contender.distance_to(holder) < 45 and not holding_ball:
+		if not powerball_out and Input.is_action_just_pressed("secondary_action") and contender.distance_to(holder) < 45 and not holding_ball:
 			holding_ball = true
 			message = "BALL TAKEN - HOLDER REFILLED"
 		if holding_ball:
@@ -403,6 +442,10 @@ func _process(delta: float) -> void:
 			if holding_ball and contender.distance_to(defender) < 30:
 				holding_ball = false
 				message = "GLADIATOR BLOCK!"
+				if era_index == 0:
+					contender = Vector2(150, 465)
+					powerball_out = true
+					powerball_reset_time = 1.0
 			if ai_holding and ai_contender.distance_to(defender) < 30:
 				ai_holding = false
 				ai_recovery = 0.8
@@ -596,8 +639,11 @@ func _draw() -> void:
 				draw_circle(goal, 29, GOLD)
 				draw_circle(goal, 21, Color("#28394b"))
 			for holder in [Vector2(145, 395), Vector2(815, 395)]:
-				draw_rect(Rect2(holder - Vector2(22, 15), Vector2(44, 30)), GOLD, false, 3)
-				draw_circle(holder, 9, GOLD)
+				if era_index == 0:
+					_draw_ball_holder(holder)
+				else:
+					draw_rect(Rect2(holder - Vector2(22, 15), Vector2(44, 30)), GOLD, false, 3)
+					draw_circle(holder, 9, GOLD)
 			_draw_contender_uniform(ai_contender, true)
 			_draw_contender_uniform(contender, false)
 			for defender in powerball_defenders:
