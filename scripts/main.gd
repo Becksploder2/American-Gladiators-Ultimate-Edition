@@ -304,6 +304,45 @@ func _next_event() -> void:
 func _draw_text(label: String, pos: Vector2, size: int = 20, tint: Color = LIGHT) -> void:
 	draw_string(hud_font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, tint)
 
+func _draw_era_arena() -> void:
+	var wall := Color("#30333e")
+	var floor_color := Color("#64676e")
+	var accent := Color("#b7a17b")
+	if era_index >= 1 and era_index <= 3:
+		wall = Color("#243b64")
+		floor_color = Color("#3c735f")
+		accent = Color("#d1d6df")
+	elif era_index >= 4 and era_index <= 7:
+		wall = Color("#1a3457")
+		floor_color = Color("#aab0b8") if era_index >= 6 else Color("#367a59")
+		accent = Color("#e9e9ef")
+	elif era_index >= 8 and era_index <= 11:
+		wall = Color("#555b68")
+		floor_color = Color("#b8bdc4")
+		accent = Color("#c83a49")
+	elif era_index >= 12:
+		wall = Color("#111e3a")
+		floor_color = Color("#226a93")
+		accent = Color("#e9b34d")
+	draw_rect(Rect2(50, 151, 860, 307), wall)
+	for i in range(13):
+		draw_rect(Rect2(55 + i * 65, 158, 56, 55), Color("#181b2b"))
+		for j in range(4):
+			draw_circle(Vector2(62 + i * 65 + j * 12, 178 + (j % 2) * 16), 4, accent)
+	if era_index == 0:
+		for i in range(9):
+			draw_rect(Rect2(60 + i * 100, 208, 12, 95), Color("#8b8d91"))
+			draw_rect(Rect2(55 + i * 100, 200, 23, 12), accent)
+	draw_rect(Rect2(54, 302, 852, 152), floor_color)
+	for i in range(5):
+		draw_line(Vector2(70 + i * 175, 310), Vector2(70 + i * 175, 447), accent, 2)
+	draw_rect(Rect2(54, 302, 852, 152), accent, false, 4)
+	if era_index >= 9 and era_index <= 11:
+		for x in [105, 760]:
+			draw_rect(Rect2(x, 166, 90, 54), Color("#111b2b"))
+			draw_rect(Rect2(x, 166, 90, 54), accent, false, 4)
+			_draw_text("AG", Vector2(x + 27, 204), 29, accent)
+
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(WIDTH, HEIGHT)), INK)
 	for i in range(0, 960, 48):
@@ -330,13 +369,13 @@ func _draw() -> void:
 		_draw_text("E: SELECT ERA - " + era_labels[era_index] + "", Vector2(70, 421), 18, GOLD)
 		_draw_text("Gladiator Mode and Creator unlock after a season victory.", Vector2(70, 455), 15)
 	elif screen == "PLAY":
-		draw_rect(Rect2(50, 151, 860, 307), BLUE)
+		_draw_era_arena()
 		draw_rect(Rect2(64, 169, 832, 270), Color("#286ba9"), false, 6)
 		draw_circle(Vector2(850, 260), 32, GOLD)
 		draw_circle(ball, 10, GOLD)
 		draw_rect(Rect2(contender - Vector2(12, 20), Vector2(24, 40)), GREEN)
 		draw_rect(Rect2(gladiator - Vector2(15, 22), Vector2(30, 44)), RED)
-		_draw_text(mode + "  -  " + event_name, Vector2(63, 126), 23, GOLD)
+		_draw_text(mode + " " + era_labels[era_index] + " - " + event_name, Vector2(63, 126), 22, GOLD)
 		_draw_text(host_primary + " / " + host_secondary, Vector2(64, 145), 13, LIGHT)
 		_draw_text("POINTS " + str(score), Vector2(690, 126), 21)
 		draw_rect(Rect2(766, 88, 137, 49), Color("#080b16"))
